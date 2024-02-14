@@ -19,9 +19,9 @@ module minter::apt_payment {
         destination: address,
     }
 
-    public(friend) fun init_apt_payment(token_minter: &signer, amount: u64, destination: address) {
-        if (!is_apt_payment_enabled(signer::address_of(token_minter))) {
-            move_to(token_minter, AptPayment { amount, destination });
+    public(friend) fun init_apt_payment(object_signer: &signer, amount: u64, destination: address) {
+        if (!is_apt_payment_enabled(signer::address_of(object_signer))) {
+            move_to(object_signer, AptPayment { amount, destination });
         };
     }
 

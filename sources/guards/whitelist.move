@@ -21,9 +21,9 @@ module minter::whitelist {
         minters: SmartTable<address, u64>,
     }
 
-    public(friend) fun init_whitelist(token_minter: &signer) {
-        if (!is_whitelist_enabled(signer::address_of(token_minter))) {
-            move_to(token_minter, Whitelist { minters: smart_table::new() });
+    public(friend) fun init_whitelist(object_signer: &signer) {
+        if (!is_whitelist_enabled(signer::address_of(object_signer))) {
+            move_to(object_signer, Whitelist { minters: smart_table::new() });
         }
     }
 
