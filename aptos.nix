@@ -6,12 +6,12 @@ let
     else if stdenv.isLinux then "Ubuntu"
     else throw "Unsupported platform ${stdenv.system}";
 
-  sha256 = if os == "MacOSX" then "sha256-E7MtO+zBTL0hmoeeM29+SkQuZ201hh8Q8CrMrCLmvEQ="
-            else "sha256-AwRYnhvTjUEKmFcENPXg18RNAWbLOajEmMJVgCBvT0k=";
+  sha256 = if os == "MacOSX" then "sha256-6uVxfgcFgxgwF9vwQwaTt23IbV5vNACmjN9BO6TSQ20="
+            else "sha256-m5wcgXLqoONKiI+7pbwCVhnsKmvjZVS/f1S9sOascF8=";
 
 in stdenv.mkDerivation rec {
   pname = "aptos-cli";
-  version = "2.1.0";
+  version = "2.1.1";
 
   src = fetchurl {
     url = "https://github.com/aptos-labs/aptos-core/releases/download/${pname}-v${version}/${pname}-${version}-${os}-x86_64.zip";
