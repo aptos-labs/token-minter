@@ -169,10 +169,10 @@ module minter::token_minter {
     public fun mint(
         minter: &signer,
         token_minter_object: Object<TokenMinter>,
-        description: String,
-        name: String,
-        royalty: Option<Royalty>,
-        uri: String,
+        _description: String,
+        _name: String,
+        _royalty: Option<Royalty>,
+        _uri: String,
         amount: u64,
     ) acquires TokenMinter {
         let token_minter = borrow(&token_minter_object);
