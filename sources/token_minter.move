@@ -5,8 +5,9 @@ module minter::token_minter {
     use std::option::Option;
     use std::signer;
     use std::string::String;
+    use std::vector;
     use aptos_framework::object;
-    use aptos_framework::object::{ConstructorRef, ExtendRef, Object};
+    use aptos_framework::object::{ConstructorRef, Object};
 
     use aptos_token_objects::collection;
     use aptos_token_objects::collection::Collection;
@@ -17,69 +18,21 @@ module minter::token_minter {
 
     use minter::apt_payment;
     use minter::collection_helper;
+    use minter::collection_properties;
+    use minter::collection_refs;
+    use minter::token_helper;
     use minter::whitelist;
 
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
-    struct TokenMinter has key {
-        version: u64,
-        collection: Object<Collection>,
-        creator: address,
-        paused: bool,
-    }
-
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
-    struct TokenMinterProperties has key {
-        /// Used to generate signer, needed for adding additional guards.
-        extend_ref: Option<object::ExtendRef>,
-    }
-
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
-    struct CollectionProperties has key {
-        /// Used to mutate collection fields
-        mutator_ref: Option<collection::MutatorRef>,
-        /// Used to mutate royalties
-        royalty_mutator_ref: Option<royalty::MutatorRef>,
-        /// Used to generate signer, need for extending object.
-        extend_ref: Option<object::ExtendRef>,
-        /// Determines if the creator can mutate the collection's description
-        mutable_description: bool,
-        /// Determines if the creator can mutate the collection's uri
-        mutable_uri: bool,
-        /// Determines if the creator can mutate token descriptions
-        mutable_token_description: bool,
-        /// Determines if the creator can mutate token names
-        mutable_token_name: bool,
-        /// Determines if the creator can mutate token properties
-        mutable_token_properties: bool,
-        /// Determines if the creator can mutate token uris
-        mutable_token_uri: bool,
-        /// Determines if the creator can burn tokens
-        tokens_burnable_by_creator: bool,
-        /// Determines if the creator can freeze tokens
-        tokens_freezable_by_creator: bool,
-        /// If the collection is soulbound
-        soulbound: bool,
-    }
-
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
-    struct TokenProperties has key {
-        /// Used to generate signer, need for extending object.
-        extend_ref: Option<object::ExtendRef>,
-        /// Used to burn.
-        burn_ref: Option<token::BurnRef>,
-        /// Used to control freeze.
-        transfer_ref: Option<object::TransferRef>,
-        /// Used to mutate fields
-        mutator_ref: Option<token::MutatorRef>,
-        /// Used to mutate properties
-        property_mutator_ref: property_map::MutatorRef,
-    }
-
+    /// Current version of the token minter
     const VERSION: u64 = 1;
 
+    /// Not the owner of the object
     const ENOT_OBJECT_OWNER: u64 = 1;
+    /// The token minter does not exist
     const ETOKEN_MINTER_DOES_NOT_EXIST: u64 = 2;
+    /// The collection does not exist
     const ECOLLECTION_DOES_NOT_EXIST: u64 = 3;
+    /// The token minter is paused
     const ETOKEN_MINTER_IS_PAUSED: u64 = 4;
     /// The token does not exist
     const ETOKEN_DOES_NOT_EXIST: u64 = 5;
@@ -92,11 +45,43 @@ module minter::token_minter {
     /// The property map being mutated is not mutable
     const EPROPERTIES_NOT_MUTABLE: u64 = 9;
 
-    /// Creates a new collection and token minter.
-    /// The `Collection` `TokenMinter` and  created will each be contained in separate objects.
-    /// The collection object will contain the `Collection` and `CollectionProperties`.
-    /// The token minter object will contain the `TokenMinter` and `TokenMinterProperties`.
-    public entry fun create_token_minter(
+    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    struct TokenMinter has key {
+        /// Version of the token minter
+        version: u64,
+        /// The collection that the token minter will mint from.
+        collection: Object<Collection>,
+        /// The address of the creator of the token minter.
+        creator: address,
+        /// Whether the token minter is paused.
+        paused: bool,
+        /// The number of tokens minted from the token minter.
+        tokens_minted: u64,
+        /// Whether only the creator can mint tokens.
+        creator_mint_only: bool,
+    }
+
+    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    struct TokenMinterRefs has key {
+        /// Used to generate signer, needed for adding additional guards and minting tokens.
+        extend_ref: object::ExtendRef,
+    }
+
+    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    struct TokenRefs has key {
+        /// Used to generate signer, needed for extending object if needed in the future.
+        extend_ref: Option<object::ExtendRef>,
+        /// Used to burn.
+        burn_ref: Option<token::BurnRef>,
+        /// Used to control freeze.
+        transfer_ref: Option<object::TransferRef>,
+        /// Used to mutate fields
+        mutator_ref: Option<token::MutatorRef>,
+        /// Used to mutate properties
+        property_mutator_ref: property_map::MutatorRef,
+    }
+
+    public entry fun init_token_minter(
         creator: &signer,
         description: String,
         max_supply: Option<u64>, // If value is present, collection configured to have a fixed supply.
@@ -113,140 +98,26 @@ module minter::token_minter {
         tokens_freezable_by_creator: bool,
         royalty_numerator: u64,
         royalty_denominator: u64,
+        creator_mint_only: bool,
+        soulbound: bool,
     ) {
-        let creator_address = signer::address_of(creator);
-        let collection_constructor_ref = &collection_helper::create_collection(
-            creator,
-            description,
-            max_supply,
-            name,
-            option::some(royalty::create(royalty_numerator, royalty_denominator, creator_address)),
-            uri,
+        create_token_minter(
+            creator, description, max_supply, name, uri, mutable_description, mutable_royalty, mutable_uri,
+            mutable_token_description, mutable_token_name, mutable_token_properties, mutable_token_uri,
+            tokens_burnable_by_creator, tokens_freezable_by_creator, royalty_numerator, royalty_denominator,
+            creator_mint_only, soulbound,
         );
-
-        create_collection_properties(
-            collection_constructor_ref,
-            mutable_description,
-            mutable_royalty,
-            mutable_uri,
-            mutable_token_description,
-            mutable_token_name,
-            mutable_token_properties,
-            mutable_token_uri,
-            tokens_burnable_by_creator,
-            tokens_freezable_by_creator,
-        );
-
-        // Create new object and store `TokenMinter` and `TokenMinterProperties`
-        let (extend_ref, object_signer) = create_object_from_creator(creator_address);
-        let token_minter = TokenMinter {
-            version: VERSION,
-            collection: object::object_from_constructor_ref(collection_constructor_ref),
-            creator: creator_address,
-            paused: false,
-        };
-        move_to(&object_signer, token_minter);
-        move_to(&object_signer, TokenMinterProperties { extend_ref: option::some(extend_ref) });
     }
 
-    public entry fun mint(
-        minter: &signer,
-        token_minter_object: Object<TokenMinter>,
+    /// Creates a new collection and token minter, these will each be contained in separate objects.
+    /// The collection object will contain the `Collection`, `CollectionRefs`, CollectionProperties`.
+    /// The token minter object will contain the `TokenMinter` and `TokenMinterProperties`.
+    public fun create_token_minter(
+        creator: &signer,
         description: String,
+        max_supply: Option<u64>, // If value is present, collection configured to have a fixed supply.
         name: String,
         uri: String,
-        amount: u64,
-        property_keys: vector<String>,
-        property_types: vector<String>,
-        property_values: vector<vector<u8>>,
-    ) acquires TokenMinter, TokenMinterProperties, CollectionProperties {
-        let token_minter = borrow(&token_minter_object);
-        assert!(!token_minter.paused, error::invalid_state(ETOKEN_MINTER_IS_PAUSED));
-
-        let token_minter_address = object::object_address(&token_minter_object);
-        let minter_address = signer::address_of(minter);
-
-        // Check guards first before minting
-        if (whitelist::is_whitelist_enabled(token_minter_address)) {
-            whitelist::execute(token_minter_object, amount, minter_address);
-        };
-        if (apt_payment::is_apt_payment_enabled(token_minter_address)) {
-            apt_payment::execute(minter, token_minter_object, amount);
-        };
-
-        mint_token(
-            minter_address,
-            token_minter_object,
-            description,
-            name,
-            uri,
-            property_keys,
-            property_types,
-            property_values,
-        );
-    }
-
-    public entry fun set_soulbound(
-        creator: &signer,
-        collection_props: Object<CollectionProperties>,
-        soulbound: bool,
-    ) acquires CollectionProperties {
-        assert_object_owner(signer::address_of(creator), collection_props);
-
-        let collection_props = borrow_collection_props_mut(&collection_props);
-        collection_props.soulbound = soulbound;
-    }
-
-    // ================================= Guards ================================= //
-
-    public fun add_or_update_whitelist(
-        creator: &signer,
-        token_minter: Object<TokenMinter>,
-        whitelisted_addresses: vector<address>,
-        max_mint_per_whitelists: vector<u64>,
-    ) {
-        assert_object_owner(signer::address_of(creator), token_minter);
-        whitelist::add_or_update_whitelist(creator, token_minter, whitelisted_addresses, max_mint_per_whitelists);
-    }
-
-    public entry fun remove_whitelist_guard(creator: &signer, token_minter: Object<TokenMinter>) {
-        assert_object_owner(signer::address_of(creator), token_minter);
-        whitelist::remove_whitelist(token_minter);
-    }
-
-    public entry fun add_or_update_apt_payment_guard(
-        creator: &signer,
-        token_minter: Object<TokenMinter>,
-        amount: u64,
-        destination: address,
-    ) {
-        assert_object_owner(signer::address_of(creator), token_minter);
-        apt_payment::add_or_update_apt_payment(creator, token_minter, amount, destination);
-    }
-
-    public entry fun remove_apt_payment_guard(creator: &signer, token_minter: Object<TokenMinter>) {
-        assert_object_owner(signer::address_of(creator), token_minter);
-        apt_payment::remove_apt_payment(token_minter);
-    }
-
-    // ================================= Token Mutators ================================= //
-
-    public entry fun set_description<T: key>(
-        creator: &signer,
-        token: Object<T>,
-        description: String,
-    ) acquires CollectionProperties, TokenProperties {
-        assert!(
-            is_mutable_description(token),
-            error::permission_denied(EFIELD_NOT_MUTABLE),
-        );
-        let token_props = authorized_borrow_token_props(token, creator);
-        token::set_description(option::borrow(&token_props.mutator_ref), description);
-    }
-
-    // ================================= Private functions ================================= //
-    fun create_collection_properties(
-        collection_constructor_ref: &ConstructorRef,
         mutable_description: bool,
         mutable_royalty: bool,
         mutable_uri: bool,
@@ -256,22 +127,31 @@ module minter::token_minter {
         mutable_token_uri: bool,
         tokens_burnable_by_creator: bool,
         tokens_freezable_by_creator: bool,
-    ) {
-        let mutator_ref = if (mutable_description || mutable_uri) {
-            option::some(collection::generate_mutator_ref(collection_constructor_ref))
-        } else {
-            option::none()
-        };
-        let royalty_mutator_ref = if (mutable_royalty) {
-            option::some(royalty::generate_mutator_ref(object::generate_extend_ref(collection_constructor_ref)))
-        } else {
-            option::none()
-        };
+        royalty_numerator: u64,
+        royalty_denominator: u64,
+        creator_mint_only: bool,
+        soulbound: bool,
+    ): Object<TokenMinter> {
+        let creator_address = signer::address_of(creator);
+        let (constructor_ref, object_signer) = create_object(creator_address);
+        let collection_constructor_ref = &collection_helper::create_collection(
+            &object_signer,
+            description,
+            max_supply,
+            name,
+            option::some(royalty::create(royalty_numerator, royalty_denominator, creator_address)),
+            uri,
+        );
 
-        let collection_props = CollectionProperties {
-            mutator_ref,
-            royalty_mutator_ref,
-            extend_ref: option::some(object::generate_extend_ref(collection_constructor_ref)),
+        let (collection_signer, _) = collection_refs::create_refs(
+            collection_constructor_ref,
+            mutable_description,
+            mutable_uri,
+            mutable_royalty,
+        );
+
+        collection_properties::create_properties(
+            &collection_signer,
             mutable_description,
             mutable_uri,
             mutable_token_description,
@@ -280,115 +160,323 @@ module minter::token_minter {
             mutable_token_uri,
             tokens_burnable_by_creator,
             tokens_freezable_by_creator,
-            soulbound: false,
-        };
-        move_to(&object::generate_signer(collection_constructor_ref), collection_props);
+            soulbound,
+        );
+
+        create_token_minter_object(
+            &object_signer,
+            &constructor_ref,
+            object::object_from_constructor_ref(collection_constructor_ref),
+            creator_address,
+            creator_mint_only,
+        )
     }
 
-    fun mint_token(
-        minter: address,
+    public entry fun mint(
+        minter: &signer,
         token_minter_object: Object<TokenMinter>,
+        name: String,
+        description: String,
+        uri: String,
+        amount: u64,
+        property_keys: vector<vector<String>>,
+        property_types: vector<vector<String>>,
+        property_values: vector<vector<vector<u8>>>,
+    ) acquires TokenMinter, TokenMinterRefs {
+        mint_token_objects(
+            minter, token_minter_object, name, description, uri, amount, property_keys, property_types, property_values,
+        );
+    }
+
+    /// Anyone can mint if they meet all guard conditions.
+    public fun mint_token_objects(
+        minter: &signer,
+        token_minter_object: Object<TokenMinter>,
+        name: String,
+        description: String,
+        uri: String,
+        amount: u64,
+        property_keys: vector<vector<String>>,
+        property_types: vector<vector<String>>,
+        property_values: vector<vector<vector<u8>>>,
+    ): vector<Object<Token>> acquires TokenMinter, TokenMinterRefs {
+        token_helper::validate_token_properties(amount, &property_keys, &property_types, &property_values);
+
+        let token_minter = borrow_mut(token_minter_object);
+        assert!(!token_minter.paused, error::invalid_state(ETOKEN_MINTER_IS_PAUSED));
+
+        let minter_address = signer::address_of(minter);
+        if (token_minter.creator_mint_only) {
+            assert_token_minter_creator(minter_address, token_minter);
+        };
+
+        // Must check ALL guards first before minting
+        check_and_execute_guards(minter, token_minter_object, amount);
+        token_minter.tokens_minted = token_minter.tokens_minted + amount;
+
+        let tokens = vector[];
+        let i = 0;
+        let token_minter_signer = &token_minter_signer(token_minter_object);
+        while (i < amount) {
+            let token = mint_internal(
+                minter_address,
+                token_minter_signer,
+                token_minter.collection,
+                description,
+                name,
+                uri,
+                *vector::borrow(&property_keys, i),
+                *vector::borrow(&property_types, i),
+                *vector::borrow(&property_values, i),
+            );
+            vector::push_back(&mut tokens, token);
+            i = i + 1;
+        };
+
+        tokens
+    }
+
+    /// This function checks all guards the `token_minter` has and executes them if they are enabled.
+    /// This function reverts if any of the guards fail.
+    fun check_and_execute_guards(minter: &signer, token_minter: Object<TokenMinter>, amount: u64) {
+        let minter_address = signer::address_of(minter);
+
+        if (whitelist::is_whitelist_enabled(token_minter)) {
+            whitelist::execute(token_minter, amount, minter_address);
+        };
+        if (apt_payment::is_apt_payment_enabled(token_minter)) {
+            apt_payment::execute(minter, token_minter, amount);
+        };
+    }
+
+    fun create_token_minter_object(
+        object_signer: &signer,
+        constructor_ref: &ConstructorRef,
+        collection: Object<Collection>,
+        creator: address,
+        creator_mint_only: bool,
+    ): Object<TokenMinter> {
+        move_to(object_signer, TokenMinter {
+            version: VERSION,
+            collection,
+            creator,
+            paused: false,
+            tokens_minted: 0,
+            creator_mint_only,
+        });
+        move_to(object_signer, TokenMinterRefs { extend_ref: object::generate_extend_ref(constructor_ref) });
+
+        object::object_from_constructor_ref(constructor_ref)
+    }
+
+    fun mint_internal(
+        minter: address,
+        token_minter_signer: &signer,
+        collection: Object<Collection>,
         description: String,
         name: String,
         uri: String,
         property_keys: vector<String>,
         property_types: vector<String>,
         property_values: vector<vector<u8>>,
-    ) acquires TokenMinter, TokenMinterProperties, CollectionProperties {
-        let token_minter = borrow(&token_minter_object);
-        let extend_ref = &borrow_props(&token_minter_object).extend_ref;
-        let token_minter_signer = &object::generate_signer_for_extending(option::borrow(extend_ref));
-
+    ): Object<Token> {
         let token_constructor_ref = &token::create(
             token_minter_signer,
-            collection::name(token_minter.collection),
+            collection::name(collection),
             description,
             name,
-            royalty::get(token_minter.collection),
+            royalty::get(collection),
             uri
         );
 
-        let collection_props = borrow_collection_props(&token_minter_object);
+        let properties = property_map::prepare_input(property_keys, property_types, property_values);
+        property_map::init(token_constructor_ref, properties);
+
+        create_token_refs_and_transfer(
+            minter,
+            token_minter_signer,
+            collection,
+            token_constructor_ref,
+        )
+    }
+
+    fun create_token_refs_and_transfer<T: key>(
+        minter: address,
+        token_minter_signer: &signer,
+        collection: Object<T>,
+        token_constructor_ref: &ConstructorRef,
+    ): Object<Token> {
         let mutator_ref = if (
-            collection_props.mutable_token_description
-                || collection_props.mutable_token_name
-                || collection_props.mutable_token_uri
-        ) {
+            collection_properties::mutable_description(collection)
+                || collection_properties::mutable_token_name(collection)
+                || collection_properties::mutable_token_uri(collection)) {
             option::some(token::generate_mutator_ref(token_constructor_ref))
         } else {
             option::none()
         };
 
-        let burn_ref = if (collection_props.tokens_burnable_by_creator) {
+        let burn_ref = if (collection_properties::tokens_burnable_by_creator(collection)) {
             option::some(token::generate_burn_ref(token_constructor_ref))
         } else {
             option::none()
         };
 
-        let token_signer = object::generate_signer(token_constructor_ref);
-        let token_properties = TokenProperties {
+        move_to(&object::generate_signer(token_constructor_ref), TokenRefs {
             extend_ref: option::some(object::generate_extend_ref(token_constructor_ref)),
             burn_ref,
             transfer_ref: option::none(),
             mutator_ref,
             property_mutator_ref: property_map::generate_mutator_ref(token_constructor_ref),
-        };
-        move_to(&token_signer, token_properties);
+        });
 
-        let properties = property_map::prepare_input(property_keys, property_types, property_values);
-        property_map::init(token_constructor_ref, properties);
-
-        transfer_token_to_minter(collection_props.soulbound, token_constructor_ref, minter, token_minter_signer);
+        token_helper::transfer_token(
+            token_minter_signer,
+            minter,
+            collection_properties::soulbound(collection),
+            token_constructor_ref,
+        )
     }
 
-    fun transfer_token_to_minter(
-        soulbound: bool,
-        token_constructor_ref: &ConstructorRef,
-        minter: address,
-        token_minter_signer: &signer,
+    // ================================= Guards ================================= //
+
+    public entry fun add_or_update_whitelist(
+        creator: &signer,
+        token_minter: Object<TokenMinter>,
+        whitelisted_addresses: vector<address>,
+        max_mint_per_whitelists: vector<u64>,
+    ) acquires TokenMinter, TokenMinterRefs {
+        assert_token_minter_creator(signer::address_of(creator), borrow(token_minter));
+
+        whitelist::add_or_update_whitelist(
+            &token_minter_signer(token_minter),
+            token_minter,
+            whitelisted_addresses,
+            max_mint_per_whitelists
+        );
+    }
+
+    public entry fun remove_whitelist_guard(creator: &signer, token_minter: Object<TokenMinter>) acquires TokenMinter {
+        assert_token_minter_creator(signer::address_of(creator), borrow(token_minter));
+        whitelist::remove_whitelist(token_minter);
+    }
+
+    public entry fun add_or_update_apt_payment_guard(
+        creator: &signer,
+        token_minter: Object<TokenMinter>,
+        amount: u64,
+        destination: address,
+    ) acquires TokenMinter, TokenMinterRefs {
+        assert_token_minter_creator(signer::address_of(creator), borrow(token_minter));
+        apt_payment::add_or_update_apt_payment(&token_minter_signer(token_minter), token_minter, amount, destination);
+    }
+
+    public entry fun remove_apt_payment_guard(
+        creator: &signer,
+        token_minter: Object<TokenMinter>
+    ) acquires TokenMinter {
+        assert_token_minter_creator(signer::address_of(creator), borrow(token_minter));
+        apt_payment::remove_apt_payment(token_minter);
+    }
+
+    // ================================= TokenMinter Mutators ================================= //
+
+    public entry fun set_version(
+        creator: &signer,
+        token_minter: Object<TokenMinter>,
+        version: u64,
+    ) acquires TokenMinter {
+        let token_minter = borrow_mut(token_minter);
+        assert_token_minter_creator(signer::address_of(creator), token_minter);
+        token_minter.version = version;
+    }
+
+    public entry fun set_paused(
+        creator: &signer,
+        token_minter: Object<TokenMinter>,
+        paused: bool,
+    ) acquires TokenMinter {
+        let token_minter = borrow_mut(token_minter);
+        assert_token_minter_creator(signer::address_of(creator), token_minter);
+        token_minter.paused = paused;
+    }
+
+    public entry fun set_creator_mint_only(
+        creator: &signer,
+        token_minter: Object<TokenMinter>,
+        creator_mint_only: bool,
+    ) acquires TokenMinter {
+        let token_minter = borrow_mut(token_minter);
+        assert_token_minter_creator(signer::address_of(creator), token_minter);
+        token_minter.creator_mint_only = creator_mint_only;
+    }
+
+    /// Destroys the token minter, this is done after the collection has been fully minted.
+    /// Assert that only the creator can call this function.
+    /// Assert that the creator owns the collection.
+    public entry fun destroy_token_minter(
+        creator: &signer,
+        token_minter_object: Object<TokenMinter>,
+    ) acquires TokenMinter {
+        let creator_address = signer::address_of(creator);
+        let token_minter = borrow(token_minter_object);
+
+        assert_token_minter_creator(creator_address, token_minter);
+        assert!(object::owns(token_minter_object, creator_address), error::permission_denied(ENOT_OBJECT_OWNER));
+
+        let TokenMinter {
+            version: _,
+            collection: _,
+            creator: _,
+            paused: _,
+            tokens_minted: _,
+            creator_mint_only: _,
+        } = move_from<TokenMinter>(object::object_address(&token_minter_object));
+    }
+
+    // ================================= Collection Mutators ================================= //
+
+    public entry fun set_collection_royalties<T: key>(
+        creator: &signer,
+        collection: Object<T>,
+        royalty_numerator: u64,
+        royalty_denominator: u64,
+        payee_address: address,
     ) {
-        if (soulbound) {
-            let transfer_ref = &object::generate_transfer_ref(token_constructor_ref);
-            let linear_transfer_ref = object::generate_linear_transfer_ref(transfer_ref);
-            object::transfer_with_ref(linear_transfer_ref, minter);
-            object::disable_ungated_transfer(transfer_ref);
-        } else {
-            let token = object::object_from_constructor_ref<Token>(token_constructor_ref);
-            object::transfer(token_minter_signer, token, minter);
-        };
+        let royalty = royalty::create(royalty_numerator, royalty_denominator, payee_address);
+        collection_refs::set_collection_royalties(creator, collection, royalty);
     }
 
-    inline fun borrow<T: key>(token_minter: &Object<T>): &TokenMinter acquires TokenMinter {
-        borrow_global<TokenMinter>(token_minter_address(token_minter))
+    // ================================= Token Mutators ================================= //
+
+    public entry fun set_token_description<T: key>(
+        creator: &signer,
+        token: Object<Token>,
+        description: String,
+    ) acquires TokenRefs {
+        assert!(
+            collection_properties::mutable_token_description(token::collection_object(token)),
+            error::permission_denied(EFIELD_NOT_MUTABLE),
+        );
+        token::set_description(option::borrow(&authorized_borrow_token_refs(token, creator).mutator_ref), description);
     }
 
-    inline fun borrow_props<T: key>(token_minter: &Object<T>): &TokenMinterProperties {
-        borrow_global<TokenMinterProperties>(token_minter_address(token_minter))
+    // ================================= View Functions ================================= //
+
+    fun token_minter_signer(token_minter: Object<TokenMinter>): signer acquires TokenMinterRefs {
+        let extend_ref = &borrow_refs(&token_minter).extend_ref;
+        object::generate_signer_for_extending(extend_ref)
     }
 
-    inline fun borrow_collection_props<T: key>(collection_props: &Object<T>): &CollectionProperties {
-        borrow_global<CollectionProperties>(collection_props_address(collection_props))
+    fun create_object(creator_address: address): (ConstructorRef, signer) {
+        let constructor_ref = object::create_object(creator_address);
+        let object_signer = object::generate_signer(&constructor_ref);
+        (constructor_ref, object_signer)
     }
 
-    inline fun borrow_collection_props_mut<T: key>(collection_props: &Object<T>): &mut CollectionProperties {
-        borrow_global_mut<CollectionProperties>(collection_props_address(collection_props))
-    }
-
-    inline fun borrow_token_props_mut<T: key>(token_props: &Object<T>): &mut TokenProperties {
-        borrow_global_mut<TokenProperties>(token_props_address(token_props))
-    }
-
-    inline fun authorized_borrow_token_props<T: key>(token: Object<T>, creator: &signer): &TokenProperties {
-        let token_props = borrow_token_props_mut(&token);
-        assert_creator(token, signer::address_of(creator));
-        token_props
-    }
-
-    fun create_object_from_creator(creator_address: address): (ExtendRef, signer) {
-        let constructor_ref = &object::create_object(creator_address);
-        let extend_ref = object::generate_extend_ref(constructor_ref);
-        let object_signer = object::generate_signer(constructor_ref);
-        (extend_ref, object_signer)
+    fun token_address<T: key>(token: &Object<T>): address {
+        let token_address = object::object_address(token);
+        assert!(exists<TokenRefs>(token_address), error::not_found(ETOKEN_DOES_NOT_EXIST));
+        token_address
     }
 
     fun token_minter_address<T: key>(token_minter: &Object<T>): address {
@@ -397,34 +485,59 @@ module minter::token_minter {
         token_minter_address
     }
 
-    fun collection_props_address<T: key>(collection: &Object<T>): address {
-        let collection_address = object::object_address(collection);
-        assert!(exists<CollectionProperties>(collection_address), error::not_found(ECOLLECTION_DOES_NOT_EXIST));
-        collection_address
+    fun assert_token_minter_creator(creator: address, token_minter: &TokenMinter) {
+        assert!(token_minter.creator == creator, error::invalid_argument(ENOT_CREATOR));
     }
 
-    fun token_props_address<T: key>(token: &Object<T>): address {
-        let token_address = object::object_address(token);
-        assert!(exists<TokenProperties>(token_address), error::not_found(ETOKEN_DOES_NOT_EXIST));
-        token_address
+    fun assert_owner<T: key>(owner: address, object: Object<T>) {
+        assert!(object::owner(object) == owner, error::invalid_argument(ENOT_OBJECT_OWNER));
     }
 
-    fun assert_object_owner<T: key>(creator: address, object: Object<T>) {
-        assert!(object::owner(object) == creator, error::invalid_argument(ENOT_OBJECT_OWNER));
+    inline fun borrow<T: key>(token_minter: Object<T>): &TokenMinter acquires TokenMinter {
+        borrow_global<TokenMinter>(token_minter_address(&token_minter))
     }
 
-    fun assert_creator<T: key>(object: Object<T>, creator: address) {
-        assert!(object::owner(object) == creator, error::invalid_argument(ENOT_CREATOR));
+    inline fun borrow_mut<T: key>(token_minter: Object<T>): &mut TokenMinter acquires TokenMinter {
+        borrow_global_mut<TokenMinter>(token_minter_address(&token_minter))
     }
 
-    public fun is_mutable_collection_token_description<T: key>(
-        collection: Object<T>,
-    ): bool acquires CollectionProperties {
-        borrow_collection_props(&collection).mutable_token_description
+    inline fun borrow_refs(token_minter: &Object<TokenMinter>): &TokenMinterRefs acquires TokenMinterRefs {
+        borrow_global<TokenMinterRefs>(token_minter_address(token_minter))
+    }
+
+    inline fun authorized_borrow_token_refs(token: Object<Token>, creator: &signer): &TokenRefs {
+        let token_refs = borrow_global<TokenRefs>(token_address(&token));
+        assert_owner(signer::address_of(creator), token);
+        token_refs
     }
 
     #[view]
-    public fun is_mutable_description<T: key>(token: Object<T>): bool acquires CollectionProperties {
-        is_mutable_collection_token_description(token::collection_object(token))
+    public fun version(token_minter: Object<TokenMinter>): u64 acquires TokenMinter {
+        borrow(token_minter).version
+    }
+
+    #[view]
+    public fun collection(token_minter: Object<TokenMinter>): Object<Collection> acquires TokenMinter {
+        borrow(token_minter).collection
+    }
+
+    #[view]
+    public fun creator(token_minter: Object<TokenMinter>): address acquires TokenMinter {
+        borrow(token_minter).creator
+    }
+
+    #[view]
+    public fun paused(token_minter: Object<TokenMinter>): bool acquires TokenMinter {
+        borrow(token_minter).paused
+    }
+
+    #[view]
+    public fun tokens_minted(token_minter: Object<TokenMinter>): u64 acquires TokenMinter {
+        borrow(token_minter).tokens_minted
+    }
+
+    #[view]
+    public fun creator_mint_only(token_minter: Object<TokenMinter>): bool acquires TokenMinter {
+        borrow(token_minter).creator_mint_only
     }
 }
