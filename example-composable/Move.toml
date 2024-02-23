@@ -1,0 +1,31 @@
+[package]
+name = "ExampleComposable"
+version = "1.0.0"
+authors = []
+
+[addresses]
+example_composable = "_"
+
+[dev-addresses]
+example_composable = "0x12345"
+minter = "0x1c3e5574728c3d0d544f5679229fac153c5f7d78b323751b41860c5ffbb21cfd"
+
+[dependencies.TokenMinter]
+local = "../token-minter"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "main"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dependencies.AptosTokenObjects]
+git = 'https://github.com/aptos-labs/aptos-core.git'
+rev = 'main'
+subdir = 'aptos-move/framework/aptos-token-objects'
+
+[dependencies.AptosToken]
+git = 'https://github.com/aptos-labs/aptos-core.git'
+rev = 'main'
+subdir = 'aptos-move/framework/aptos-token'
+
+[dev-dependencies]
