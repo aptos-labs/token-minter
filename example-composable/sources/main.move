@@ -31,8 +31,7 @@ module example_composable::main {
             false,
             false,
             false,
-            0,
-            100,
+            option::none(),
             true, // creator_mint_only
             false,
         );
@@ -51,8 +50,7 @@ module example_composable::main {
             false,
             false,
             false,
-            0,
-            100,
+            option::none(),
             true, // creator_mint_only
             false,
         );
