@@ -25,7 +25,7 @@ module minter::token_minter_with_guards_test {
 
         let previous_minted_amount = token_minter::tokens_minted(token_minter);
         let user_addr = signer::address_of(user);
-        token_minter::mint(
+        token_minter::mint_tokens_entry(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -49,7 +49,7 @@ module minter::token_minter_with_guards_test {
         token_minter::add_or_update_whitelist(creator, token_minter, vector[signer::address_of(creator)], vector[2]);
 
         let user_addr = signer::address_of(user);
-        token_minter::mint(
+        token_minter::mint_tokens_entry(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -77,7 +77,7 @@ module minter::token_minter_with_guards_test {
 
         // Attempt to mint after zero whitelisted amount, expect abort
         let user_addr = signer::address_of(user);
-        token_minter::mint(
+        token_minter::mint_tokens_entry(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -102,7 +102,7 @@ module minter::token_minter_with_guards_test {
 
         // Attempting to mint more than allowed
         let user_addr = signer::address_of(user);
-        token_minter::mint(
+        token_minter::mint_tokens_entry(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -127,7 +127,7 @@ module minter::token_minter_with_guards_test {
 
         // Attempting to mint more than allowed
         let user_addr = signer::address_of(user);
-        token_minter::mint(
+        token_minter::mint_tokens_entry(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -150,7 +150,7 @@ module minter::token_minter_with_guards_test {
         token_minter::add_or_update_whitelist(creator, token_minter, whitelisted_addrs, whitelisted_amounts_per_user);
 
         let amount = 1;
-        token_minter::mint(
+        token_minter::mint_tokens_entry(
             user,
             token_minter,
             string::utf8(b"TestToken"),

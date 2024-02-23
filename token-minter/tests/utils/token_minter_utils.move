@@ -29,7 +29,7 @@ module minter::token_minter_utils {
         let tokens_burnable_by_creator = true;
         let tokens_freezable_by_creator = true;
 
-        let token_minter = token_minter::create_token_minter(
+        let token_minter = token_minter::init_token_minter(
             creator,
             string::utf8(COLLECTION_DESCRIPTION),
             max_supply,

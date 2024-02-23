@@ -26,7 +26,7 @@ module minter::token_minter_tests {
         let previous_minted_amount = token_minter::tokens_minted(token_minter);
         let amount = 1;
 
-        let tokens = &token_minter::mint_token_objects(
+        let tokens = &token_minter::mint_tokens(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -60,7 +60,7 @@ module minter::token_minter_tests {
         // Set creator mint to true, so when `user` mints, it reverts
         let token_minter = token_minter_utils::init_token_minter_and_collection(creator, true, false);
 
-        token_minter::mint(
+        token_minter::mint_tokens(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -81,7 +81,7 @@ module minter::token_minter_tests {
         // Set `paused` to true, so minting should fail
         token_minter::set_paused(creator, token_minter, true);
 
-        token_minter::mint(
+        token_minter::mint_tokens(
             creator,
             token_minter,
             string::utf8(b"TestToken"),
@@ -101,7 +101,7 @@ module minter::token_minter_tests {
         let soulbound = true;
         let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, soulbound);
 
-        let tokens = &token_minter::mint_token_objects(
+        let tokens = &token_minter::mint_tokens(
             creator,
             token_minter,
             string::utf8(b"TestToken"),
