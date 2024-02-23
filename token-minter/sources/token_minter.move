@@ -48,10 +48,6 @@ module minter::token_minter {
         paused: bool,
         /// Whether only the creator can mint tokens.
         creator_mint_only: bool,
-    }
-
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
-    struct TokenMinterRefs has key {
         /// Used to generate signer, needed for adding additional guards and minting tokens.
         extend_ref: object::ExtendRef,
     }
@@ -171,7 +167,7 @@ module minter::token_minter {
         property_types: vector<vector<String>>,
         property_values: vector<vector<vector<u8>>>,
         recipient_addrs: vector<address>,
-    ) acquires TokenMinter, TokenMinterRefs {
+    ) acquires TokenMinter {
         mint_tokens_object(
             minter, token_minter_object, name, description, uri, amount, property_keys, property_types, property_values, recipient_addrs
         );
@@ -199,9 +195,10 @@ module minter::token_minter {
         property_types: vector<vector<String>>,
         property_values: vector<vector<vector<u8>>>,
         recipient_addrs: vector<address>,
-    ): vector<Object<Token>> acquires TokenMinter, TokenMinterRefs {
+    ): vector<Object<Token>> acquires TokenMinter {
         token_helper::validate_token_properties(amount, &property_keys, &property_types, &property_values, &recipient_addrs);
 
+        let token_minter_signer = &token_minter_signer(token_minter_object);
         let token_minter = borrow_mut(token_minter_object);
         assert!(!token_minter.paused, error::invalid_state(ETOKEN_MINTER_IS_PAUSED));
 
@@ -214,7 +211,6 @@ module minter::token_minter {
 
         let tokens = vector[];
         let i = 0;
-        let token_minter_signer = &token_minter_signer(token_minter_object);
         while (i < amount) {
             // TODO: When the collection is soulbound, we should enforce that
             // the recipient_addr is the same as the minter's address unless the
@@ -261,8 +257,8 @@ module minter::token_minter {
             collection,
             paused: false,
             creator_mint_only,
+            extend_ref: object::generate_extend_ref(constructor_ref),
         });
-        move_to(object_signer, TokenMinterRefs { extend_ref: object::generate_extend_ref(constructor_ref) });
 
         object::object_from_constructor_ref(constructor_ref)
     }
@@ -348,7 +344,7 @@ module minter::token_minter {
         token_minter: Object<TokenMinter>,
         whitelisted_addresses: vector<address>,
         max_mint_per_whitelists: vector<u64>,
-    ) acquires TokenMinterRefs {
+    ) acquires TokenMinter {
         assert_token_minter_creator(signer::address_of(creator), token_minter);
 
         whitelist::add_or_update_whitelist(
@@ -369,7 +365,7 @@ module minter::token_minter {
         token_minter: Object<TokenMinter>,
         amount: u64,
         destination: address,
-    ) acquires TokenMinterRefs {
+    ) acquires TokenMinter {
         assert_token_minter_creator(signer::address_of(creator), token_minter);
         apt_payment::add_or_update_apt_payment(&token_minter_signer(token_minter), token_minter, amount, destination);
     }
@@ -429,6 +425,7 @@ module minter::token_minter {
             collection: _,
             paused: _,
             creator_mint_only: _,
+            extend_ref: _,
         } = move_from<TokenMinter>(object::object_address(&token_minter_object));
     }
 
@@ -461,8 +458,8 @@ module minter::token_minter {
 
     // ================================= View Functions ================================= //
 
-    fun token_minter_signer(token_minter: Object<TokenMinter>): signer acquires TokenMinterRefs {
-        let extend_ref = &borrow_refs(&token_minter).extend_ref;
+    fun token_minter_signer(token_minter: Object<TokenMinter>): signer acquires TokenMinter {
+        let extend_ref = &borrow(token_minter).extend_ref;
         object::generate_signer_for_extending(extend_ref)
     }
 
@@ -498,10 +495,6 @@ module minter::token_minter {
 
     inline fun borrow_mut<T: key>(token_minter: Object<T>): &mut TokenMinter acquires TokenMinter {
         borrow_global_mut<TokenMinter>(token_minter_address(&token_minter))
-    }
-
-    inline fun borrow_refs(token_minter: &Object<TokenMinter>): &TokenMinterRefs acquires TokenMinterRefs {
-        borrow_global<TokenMinterRefs>(token_minter_address(token_minter))
     }
 
     inline fun authorized_borrow_token_refs(token: Object<Token>, creator: &signer): &TokenRefs {
