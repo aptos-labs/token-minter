@@ -24,6 +24,7 @@ module minter::token_minter_with_guards_test {
         assert!(whitelist::allowance(token_minter, signer::address_of(user)) == whitelist_amount, 0);
 
         let previous_minted_amount = token_minter::tokens_minted(token_minter);
+        let user_addr = signer::address_of(user);
         token_minter::mint(
             user,
             token_minter,
@@ -34,6 +35,7 @@ module minter::token_minter_with_guards_test {
             vector[vector<String>[string::utf8(b"attack")], vector<String>[string::utf8(b"defense")]],
             vector[vector<String>[string::utf8(b"u64")], vector<String>[string::utf8(b"u64")]],
             vector[vector[bcs::to_bytes<u64>(&20)], vector[bcs::to_bytes<u64>(&10)]],
+            vector[user_addr, user_addr],
         );
 
         // User should mint 2 tokens as user was whitelisted.
@@ -46,6 +48,7 @@ module minter::token_minter_with_guards_test {
         let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
         token_minter::add_or_update_whitelist(creator, token_minter, vector[signer::address_of(creator)], vector[2]);
 
+        let user_addr = signer::address_of(user);
         token_minter::mint(
             user,
             token_minter,
@@ -56,6 +59,7 @@ module minter::token_minter_with_guards_test {
             vector[vector<String>[string::utf8(b"attack")], vector<String>[string::utf8(b"defense")]],
             vector[vector<String>[string::utf8(b"u64")], vector<String>[string::utf8(b"u64")]],
             vector[vector[bcs::to_bytes<u64>(&20)], vector[bcs::to_bytes<u64>(&10)]],
+            vector[user_addr, user_addr],
         );
     }
 
@@ -72,6 +76,7 @@ module minter::token_minter_with_guards_test {
         token_minter::add_or_update_whitelist(creator, token_minter, whitelisted_addrs, vector[0, 0]);
 
         // Attempt to mint after zero whitelisted amount, expect abort
+        let user_addr = signer::address_of(user);
         token_minter::mint(
             user,
             token_minter,
@@ -82,6 +87,7 @@ module minter::token_minter_with_guards_test {
             vector[vector<String>[string::utf8(b"attack")], vector<String>[string::utf8(b"defense")]],
             vector[vector<String>[string::utf8(b"u64")], vector<String>[string::utf8(b"u64")]],
             vector[vector[bcs::to_bytes<u64>(&20)], vector[bcs::to_bytes<u64>(&10)]],
+            vector[user_addr, user_addr],
         );
     }
 
@@ -95,6 +101,7 @@ module minter::token_minter_with_guards_test {
         token_minter::add_or_update_whitelist(creator, token_minter, whitelisted_addrs, whitelisted_amounts_per_user);
 
         // Attempting to mint more than allowed
+        let user_addr = signer::address_of(user);
         token_minter::mint(
             user,
             token_minter,
@@ -105,6 +112,7 @@ module minter::token_minter_with_guards_test {
             vector[vector<String>[string::utf8(b"attack")], vector<String>[string::utf8(b"defense")]],
             vector[vector<String>[string::utf8(b"u64")], vector<String>[string::utf8(b"u64")]],
             vector[vector[bcs::to_bytes<u64>(&20)], vector[bcs::to_bytes<u64>(&10)]],
+            vector[user_addr, user_addr],
         );
     }
 
@@ -118,6 +126,7 @@ module minter::token_minter_with_guards_test {
         token_minter::remove_whitelist_guard(creator, token_minter);
 
         // Attempting to mint more than allowed
+        let user_addr = signer::address_of(user);
         token_minter::mint(
             user,
             token_minter,
@@ -128,6 +137,7 @@ module minter::token_minter_with_guards_test {
             vector[vector<String>[string::utf8(b"attack")], vector<String>[string::utf8(b"defense")]],
             vector[vector<String>[string::utf8(b"u64")], vector<String>[string::utf8(b"u64")]],
             vector[vector[bcs::to_bytes<u64>(&20)], vector[bcs::to_bytes<u64>(&10)]],
+            vector[user_addr, user_addr],
         );
     }
 
@@ -150,6 +160,7 @@ module minter::token_minter_with_guards_test {
             vector[vector<String>[string::utf8(b"attack")]],
             vector[vector<String>[string::utf8(b"u64")]],
             vector[vector[bcs::to_bytes<u64>(&20)]],
+            vector[signer::address_of(user)],
         );
 
         assert!(whitelist::allowance(token_minter, signer::address_of(user)) == whitelisted_amount - amount, 0);
