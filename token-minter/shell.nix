@@ -21,9 +21,9 @@ pkgs.mkShell {
     }
 
     pub() {
-      local token-minter=0x$(aptos config show-profiles | jq -r '.Result.default.account')
+      local minter=0x$(aptos config show-profiles | jq -r '.Result.default.account')
       aptos move publish \
-        --named-addresses token-minter=$token-minter \
+        --named-addresses minter=$minter \
         --skip-fetch-latest-git-deps
     }
   '';
