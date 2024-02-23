@@ -44,8 +44,6 @@ module minter::token_minter {
         version: u64,
         /// The collection that the token minter will mint from.
         collection: Object<Collection>,
-        /// The address of the creator of the token minter.
-        creator: address,
         /// Whether the token minter is paused.
         paused: bool,
         /// The number of tokens minted from the token minter.
@@ -160,7 +158,6 @@ module minter::token_minter {
             &object_signer,
             &constructor_ref,
             object::object_from_constructor_ref(collection_constructor_ref),
-            creator_address,
             creator_mint_only,
         )
     }
@@ -200,7 +197,7 @@ module minter::token_minter {
 
         let minter_address = signer::address_of(minter);
         if (token_minter.creator_mint_only) {
-            assert_token_minter_creator(minter_address, token_minter);
+            assert_token_minter_creator(minter_address, token_minter_object);
         };
 
         // Must check ALL guards first before minting
@@ -246,13 +243,11 @@ module minter::token_minter {
         object_signer: &signer,
         constructor_ref: &ConstructorRef,
         collection: Object<Collection>,
-        creator: address,
         creator_mint_only: bool,
     ): Object<TokenMinter> {
         move_to(object_signer, TokenMinter {
             version: VERSION,
             collection,
-            creator,
             paused: false,
             tokens_minted: 0,
             creator_mint_only,
@@ -337,8 +332,8 @@ module minter::token_minter {
         token_minter: Object<TokenMinter>,
         whitelisted_addresses: vector<address>,
         max_mint_per_whitelists: vector<u64>,
-    ) acquires TokenMinter, TokenMinterRefs {
-        assert_token_minter_creator(signer::address_of(creator), borrow(token_minter));
+    ) acquires TokenMinterRefs {
+        assert_token_minter_creator(signer::address_of(creator), token_minter);
 
         whitelist::add_or_update_whitelist(
             &token_minter_signer(token_minter),
@@ -348,8 +343,8 @@ module minter::token_minter {
         );
     }
 
-    public entry fun remove_whitelist_guard(creator: &signer, token_minter: Object<TokenMinter>) acquires TokenMinter {
-        assert_token_minter_creator(signer::address_of(creator), borrow(token_minter));
+    public entry fun remove_whitelist_guard(creator: &signer, token_minter: Object<TokenMinter>) {
+        assert_token_minter_creator(signer::address_of(creator), token_minter);
         whitelist::remove_whitelist(token_minter);
     }
 
@@ -358,16 +353,16 @@ module minter::token_minter {
         token_minter: Object<TokenMinter>,
         amount: u64,
         destination: address,
-    ) acquires TokenMinter, TokenMinterRefs {
-        assert_token_minter_creator(signer::address_of(creator), borrow(token_minter));
+    ) acquires TokenMinterRefs {
+        assert_token_minter_creator(signer::address_of(creator), token_minter);
         apt_payment::add_or_update_apt_payment(&token_minter_signer(token_minter), token_minter, amount, destination);
     }
 
     public entry fun remove_apt_payment_guard(
         creator: &signer,
         token_minter: Object<TokenMinter>
-    ) acquires TokenMinter {
-        assert_token_minter_creator(signer::address_of(creator), borrow(token_minter));
+    ) {
+        assert_token_minter_creator(signer::address_of(creator), token_minter);
         apt_payment::remove_apt_payment(token_minter);
     }
 
@@ -378,8 +373,8 @@ module minter::token_minter {
         token_minter: Object<TokenMinter>,
         version: u64,
     ) acquires TokenMinter {
-        let token_minter = borrow_mut(token_minter);
         assert_token_minter_creator(signer::address_of(creator), token_minter);
+        let token_minter = borrow_mut(token_minter);
         token_minter.version = version;
     }
 
@@ -388,8 +383,8 @@ module minter::token_minter {
         token_minter: Object<TokenMinter>,
         paused: bool,
     ) acquires TokenMinter {
-        let token_minter = borrow_mut(token_minter);
         assert_token_minter_creator(signer::address_of(creator), token_minter);
+        let token_minter = borrow_mut(token_minter);
         token_minter.paused = paused;
     }
 
@@ -398,8 +393,8 @@ module minter::token_minter {
         token_minter: Object<TokenMinter>,
         creator_mint_only: bool,
     ) acquires TokenMinter {
-        let token_minter = borrow_mut(token_minter);
         assert_token_minter_creator(signer::address_of(creator), token_minter);
+        let token_minter = borrow_mut(token_minter);
         token_minter.creator_mint_only = creator_mint_only;
     }
 
@@ -411,15 +406,11 @@ module minter::token_minter {
         token_minter_object: Object<TokenMinter>,
     ) acquires TokenMinter {
         let creator_address = signer::address_of(creator);
-        let token_minter = borrow(token_minter_object);
-
-        assert_token_minter_creator(creator_address, token_minter);
-        assert!(object::owns(token_minter_object, creator_address), error::permission_denied(ENOT_OBJECT_OWNER));
+        assert_token_minter_creator(creator_address, token_minter_object);
 
         let TokenMinter {
             version: _,
             collection: _,
-            creator: _,
             paused: _,
             tokens_minted: _,
             creator_mint_only: _,
@@ -478,8 +469,8 @@ module minter::token_minter {
         token_minter_address
     }
 
-    fun assert_token_minter_creator(creator: address, token_minter: &TokenMinter) {
-        assert!(token_minter.creator == creator, error::invalid_argument(ENOT_CREATOR));
+    fun assert_token_minter_creator(creator_addr: address, token_minter: Object<TokenMinter>) {
+        assert!(object::owns(token_minter, creator_addr), error::invalid_argument(ENOT_CREATOR));
     }
 
     fun assert_owner<T: key>(owner: address, object: Object<T>) {
@@ -515,8 +506,8 @@ module minter::token_minter {
     }
 
     #[view]
-    public fun creator(token_minter: Object<TokenMinter>): address acquires TokenMinter {
-        borrow(token_minter).creator
+    public fun creator(token_minter: Object<TokenMinter>): address {
+        object::owner(token_minter)
     }
 
     #[view]
