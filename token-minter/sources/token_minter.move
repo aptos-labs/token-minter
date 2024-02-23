@@ -84,7 +84,7 @@ module minter::token_minter {
         mutable_token_properties: bool,
         mutable_token_uri: bool,
         tokens_burnable_by_creator: bool,
-        tokens_freezable_by_creator: bool,
+        tokens_transferable_by_creator: bool,
         royalty_numerator: u64,
         royalty_denominator: u64,
         creator_mint_only: bool,
@@ -93,7 +93,7 @@ module minter::token_minter {
         init_token_minter_object(
             creator, description, max_supply, name, uri, mutable_description, mutable_royalty, mutable_uri,
             mutable_token_description, mutable_token_name, mutable_token_properties, mutable_token_uri,
-            tokens_burnable_by_creator, tokens_freezable_by_creator, royalty_numerator, royalty_denominator,
+            tokens_burnable_by_creator, tokens_transferable_by_creator, royalty_numerator, royalty_denominator,
             creator_mint_only, soulbound,
         );
     }
@@ -115,7 +115,7 @@ module minter::token_minter {
         mutable_token_properties: bool,
         mutable_token_uri: bool,
         tokens_burnable_by_creator: bool,
-        tokens_freezable_by_creator: bool,
+        tokens_transferable_by_creator: bool,
         royalty_numerator: u64,
         royalty_denominator: u64,
         creator_mint_only: bool,
@@ -148,7 +148,7 @@ module minter::token_minter {
             mutable_token_properties,
             mutable_token_uri,
             tokens_burnable_by_creator,
-            tokens_freezable_by_creator,
+            tokens_transferable_by_creator,
             soulbound,
         );
 
@@ -319,10 +319,16 @@ module minter::token_minter {
             option::none()
         };
 
+        let transfer_ref = if (collection_properties::tokens_transferable_by_creator(collection)) {
+            option::some(object::generate_transfer_ref(token_constructor_ref))
+        } else {
+            option::none()
+        };
+
         move_to(&object::generate_signer(token_constructor_ref), TokenRefs {
             extend_ref: option::some(object::generate_extend_ref(token_constructor_ref)),
             burn_ref,
-            transfer_ref: option::none(),
+            transfer_ref,
             mutator_ref,
             property_mutator_ref: property_map::generate_mutator_ref(token_constructor_ref),
         });

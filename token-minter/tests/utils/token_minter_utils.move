@@ -27,7 +27,7 @@ module minter::token_minter_utils {
         let mutable_token_properties = true;
         let mutable_token_uri = true;
         let tokens_burnable_by_creator = true;
-        let tokens_freezable_by_creator = true;
+        let tokens_transferable_by_creator = true;
 
         let token_minter = token_minter::init_token_minter_object(
             creator,
@@ -43,7 +43,7 @@ module minter::token_minter_utils {
             mutable_token_properties,
             mutable_token_uri,
             tokens_burnable_by_creator,
-            tokens_freezable_by_creator,
+            tokens_transferable_by_creator,
             ROYALTY_NUMERATOR,
             ROYALTY_DENOMINATOR,
             creator_mint_only,
