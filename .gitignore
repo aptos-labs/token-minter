@@ -1,5 +1,6 @@
 # production
-/build
+**/build
+**/.aptos
 .idea/
 
 # misc
