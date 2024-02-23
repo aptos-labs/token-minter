@@ -16,7 +16,7 @@ module minter::token_minter_tests {
     #[test(creator = @0x123, user = @0x456)]
     /// When public mint is enabled, anyone can mint tokens.
     fun test_mint_public_mint(creator: &signer, user: &signer) {
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         // Assert creator owns the token minter.
         assert!(object::owns(token_minter, signer::address_of(creator)), 0);
         // Assert creator owns the collection.
@@ -26,7 +26,7 @@ module minter::token_minter_tests {
         let previous_minted_amount = token_minter::tokens_minted(token_minter);
         let amount = 1;
 
-        let tokens = &token_minter::mint_tokens(
+        let tokens = &token_minter::mint_tokens_object(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -58,9 +58,9 @@ module minter::token_minter_tests {
     #[expected_failure(abort_code = 0x010006, location = minter::token_minter)]
     fun test_mint_token_when_not_creator(creator: &signer, user: &signer) {
         // Set creator mint to true, so when `user` mints, it reverts
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, true, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, true, false);
 
-        token_minter::mint_tokens(
+        token_minter::mint_tokens_object(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -77,11 +77,11 @@ module minter::token_minter_tests {
     #[test(creator = @0x123)]
     #[expected_failure(abort_code = 0x030004, location = minter::token_minter)]
     fun test_mint_when_paused(creator: &signer) {
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         // Set `paused` to true, so minting should fail
         token_minter::set_paused(creator, token_minter, true);
 
-        token_minter::mint_tokens(
+        token_minter::mint_tokens_object(
             creator,
             token_minter,
             string::utf8(b"TestToken"),
@@ -99,9 +99,9 @@ module minter::token_minter_tests {
     fun test_mint_soulbound(creator: &signer) {
         // Set `soulbound` to true, this will mint soulbound NFTs.
         let soulbound = true;
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, soulbound);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, soulbound);
 
-        let tokens = &token_minter::mint_tokens(
+        let tokens = &token_minter::mint_tokens_object(
             creator,
             token_minter,
             string::utf8(b"TestToken"),
@@ -124,14 +124,14 @@ module minter::token_minter_tests {
 
     #[test(creator = @0x123)]
     fun test_destroy_token_minter(creator: &signer) {
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         token_minter::destroy_token_minter(creator, token_minter);
     }
 
     #[test(creator = @0x123, user = @0x456)]
     #[expected_failure(abort_code = 0x010006, location = minter::token_minter)]
     fun test_destroy_token_minter_fails_when_not_creator(creator: &signer, user: &signer) {
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         token_minter::destroy_token_minter(user, token_minter);
     }
 }

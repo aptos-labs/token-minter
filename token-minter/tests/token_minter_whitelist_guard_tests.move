@@ -12,7 +12,7 @@ module minter::token_minter_with_guards_test {
     #[test(creator = @0x123, user = @0x456)]
     fun test_add_whitelist_guard_and_mint(creator: &signer, user: &signer) {
         let whitelist_amount = 2;
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         let whitelisted_addrs = vector[signer::address_of(creator), signer::address_of(user)];
         let whitelisted_amounts_per_user = vector[whitelist_amount, whitelist_amount];
         token_minter::add_or_update_whitelist(creator, token_minter, whitelisted_addrs, whitelisted_amounts_per_user);
@@ -25,7 +25,7 @@ module minter::token_minter_with_guards_test {
 
         let previous_minted_amount = token_minter::tokens_minted(token_minter);
         let user_addr = signer::address_of(user);
-        token_minter::mint_tokens_entry(
+        token_minter::mint_tokens(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -45,11 +45,11 @@ module minter::token_minter_with_guards_test {
     #[test(creator = @0x123, user = @0x456)]
     #[expected_failure(abort_code = 0x060002, location = minter::whitelist)]
     fun test_user_not_whitelisted(creator: &signer, user: &signer) {
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         token_minter::add_or_update_whitelist(creator, token_minter, vector[signer::address_of(creator)], vector[2]);
 
         let user_addr = signer::address_of(user);
-        token_minter::mint_tokens_entry(
+        token_minter::mint_tokens(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -66,7 +66,7 @@ module minter::token_minter_with_guards_test {
     #[test(creator = @0x123, user = @0x456)]
     #[expected_failure(abort_code = 0x030004, location = minter::whitelist)]
     fun test_set_whitelist_allowance_to_zero_and_mint(creator: &signer, user: &signer) {
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         let whitelisted_addrs = vector[signer::address_of(creator), signer::address_of(user)];
         let whitelisted_amounts_per_user = vector[2, 2];
         // Create and add whitelist members
@@ -77,7 +77,7 @@ module minter::token_minter_with_guards_test {
 
         // Attempt to mint after zero whitelisted amount, expect abort
         let user_addr = signer::address_of(user);
-        token_minter::mint_tokens_entry(
+        token_minter::mint_tokens(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -94,7 +94,7 @@ module minter::token_minter_with_guards_test {
     #[test(creator = @0x123, user = @0x456)]
     #[expected_failure(abort_code = 0x030004, location = minter::whitelist)]
     fun test_abort_when_mint_more_than_whitelist_allowance(creator: &signer, user: &signer) {
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         let whitelisted_addrs = vector[signer::address_of(creator), signer::address_of(user)];
         let whitelisted_amount = 1;
         let whitelisted_amounts_per_user = vector[whitelisted_amount, whitelisted_amount];
@@ -102,7 +102,7 @@ module minter::token_minter_with_guards_test {
 
         // Attempting to mint more than allowed
         let user_addr = signer::address_of(user);
-        token_minter::mint_tokens_entry(
+        token_minter::mint_tokens(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -118,7 +118,7 @@ module minter::token_minter_with_guards_test {
 
     #[test(creator = @0x123, user = @0x456)]
     fun test_mint_success_when_whitelist_guard_removed(creator: &signer, user: &signer) {
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         let whitelisted_addrs = vector[signer::address_of(creator), signer::address_of(user)];
         let whitelisted_amounts_per_user = vector[2, 2];
         token_minter::add_or_update_whitelist(creator, token_minter, whitelisted_addrs, whitelisted_amounts_per_user);
@@ -127,7 +127,7 @@ module minter::token_minter_with_guards_test {
 
         // Attempting to mint more than allowed
         let user_addr = signer::address_of(user);
-        token_minter::mint_tokens_entry(
+        token_minter::mint_tokens(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -143,14 +143,14 @@ module minter::token_minter_with_guards_test {
 
     #[test(creator = @0x123, user = @0x456)]
     fun test_partial_mint_whitelist_allowance(creator: &signer, user: &signer) {
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         let whitelisted_addrs = vector[signer::address_of(creator), signer::address_of(user)];
         let whitelisted_amount = 2;
         let whitelisted_amounts_per_user = vector[whitelisted_amount, whitelisted_amount];
         token_minter::add_or_update_whitelist(creator, token_minter, whitelisted_addrs, whitelisted_amounts_per_user);
 
         let amount = 1;
-        token_minter::mint_tokens_entry(
+        token_minter::mint_tokens(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -169,14 +169,14 @@ module minter::token_minter_with_guards_test {
     #[test(creator = @0x123, user = @0x456)]
     #[expected_failure(abort_code = 0x010006, location = minter::token_minter)]
     fun test_non_creator_updating_whitelist(creator: &signer, user: &signer) {
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         token_minter::add_or_update_whitelist(user, token_minter, vector[], vector[]);
     }
 
     #[test(creator = @0x123, user = @0x456)]
     #[expected_failure(abort_code = 0x010006, location = minter::token_minter)]
     fun test_non_creator_removing_whitelist(creator: &signer, user: &signer) {
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         token_minter::remove_whitelist_guard(user, token_minter);
     }
 }

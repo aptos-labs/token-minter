@@ -70,7 +70,7 @@ module minter::token_minter {
         property_mutator_ref: property_map::MutatorRef,
     }
 
-    public entry fun init_token_minter_entry(
+    public entry fun init_token_minter(
         creator: &signer,
         description: String,
         max_supply: Option<u64>, // If value is present, collection configured to have a fixed supply.
@@ -90,7 +90,7 @@ module minter::token_minter {
         creator_mint_only: bool,
         soulbound: bool,
     ) {
-        init_token_minter(
+        init_token_minter_object(
             creator, description, max_supply, name, uri, mutable_description, mutable_royalty, mutable_uri,
             mutable_token_description, mutable_token_name, mutable_token_properties, mutable_token_uri,
             tokens_burnable_by_creator, tokens_freezable_by_creator, royalty_numerator, royalty_denominator,
@@ -101,7 +101,7 @@ module minter::token_minter {
     /// Creates a new collection and token minter, these will each be contained in separate objects.
     /// The collection object will contain the `Collection`, `CollectionRefs`, CollectionProperties`.
     /// The token minter object will contain the `TokenMinter` and `TokenMinterProperties`.
-    public fun init_token_minter(
+    public fun init_token_minter_object(
         creator: &signer,
         description: String,
         max_supply: Option<u64>, // If value is present, collection configured to have a fixed supply.
@@ -152,7 +152,7 @@ module minter::token_minter {
             soulbound,
         );
 
-        init_token_minter_object(
+        init_token_minter_object_object(
             &object_signer,
             &constructor_ref,
             object::object_from_constructor_ref(collection_constructor_ref),
@@ -160,7 +160,7 @@ module minter::token_minter {
         )
     }
 
-    public entry fun mint_tokens_entry(
+    public entry fun mint_tokens(
         minter: &signer,
         token_minter_object: Object<TokenMinter>,
         name: String,
@@ -172,7 +172,7 @@ module minter::token_minter {
         property_values: vector<vector<vector<u8>>>,
         recipient_addrs: vector<address>,
     ) acquires TokenMinter, TokenMinterRefs {
-        mint_tokens(
+        mint_tokens_object(
             minter, token_minter_object, name, description, uri, amount, property_keys, property_types, property_values, recipient_addrs
         );
     }
@@ -188,7 +188,7 @@ module minter::token_minter {
     /// @param property_types The types of the properties.
     /// @param property_values The values of the properties.
     /// @param recipient_addrs The addresses to mint the tokens to.
-    public fun mint_tokens(
+    public fun mint_tokens_object(
         minter: &signer,
         token_minter_object: Object<TokenMinter>,
         name: String,
@@ -250,7 +250,7 @@ module minter::token_minter {
         };
     }
 
-    fun init_token_minter_object(
+    fun init_token_minter_object_object(
         object_signer: &signer,
         constructor_ref: &ConstructorRef,
         collection: Object<Collection>,
