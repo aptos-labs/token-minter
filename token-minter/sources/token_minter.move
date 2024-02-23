@@ -1,27 +1,20 @@
 module minter::token_minter {
-
-    use std::error;
-    use std::option;
-    use std::option::Option;
-    use std::signer;
-    use std::string::String;
-    use std::vector;
-    use aptos_framework::object;
-    use aptos_framework::object::{ConstructorRef, Object};
-
-    use aptos_token_objects::collection;
-    use aptos_token_objects::collection::Collection;
+    use aptos_framework::object::{Self, ConstructorRef, Object};
+    use aptos_token_objects::collection::{Self, Collection};
     use aptos_token_objects::property_map;
     use aptos_token_objects::royalty;
-    use aptos_token_objects::token;
-    use aptos_token_objects::token::Token;
-
+    use aptos_token_objects::token::{Self, Token};
     use minter::apt_payment;
     use minter::collection_helper;
     use minter::collection_properties;
     use minter::collection_refs;
     use minter::token_helper;
     use minter::whitelist;
+    use std::error;
+    use std::option::{Self, Option};
+    use std::signer;
+    use std::string::String;
+    use std::vector;
 
     /// Current version of the token minter
     const VERSION: u64 = 1;
