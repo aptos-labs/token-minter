@@ -48,8 +48,6 @@ module minter::token_minter {
         creator: address,
         /// Whether the token minter is paused.
         paused: bool,
-        /// The number of tokens minted from the token minter.
-        tokens_minted: u64,
         /// Whether only the creator can mint tokens.
         creator_mint_only: bool,
     }
@@ -205,7 +203,6 @@ module minter::token_minter {
 
         // Must check ALL guards first before minting
         check_and_execute_guards(minter, token_minter_object, amount);
-        token_minter.tokens_minted = token_minter.tokens_minted + amount;
 
         let tokens = vector[];
         let i = 0;
@@ -254,7 +251,6 @@ module minter::token_minter {
             collection,
             creator,
             paused: false,
-            tokens_minted: 0,
             creator_mint_only,
         });
         move_to(object_signer, TokenMinterRefs { extend_ref: object::generate_extend_ref(constructor_ref) });
@@ -421,7 +417,6 @@ module minter::token_minter {
             collection: _,
             creator: _,
             paused: _,
-            tokens_minted: _,
             creator_mint_only: _,
         } = move_from<TokenMinter>(object::object_address(&token_minter_object));
     }
@@ -526,7 +521,9 @@ module minter::token_minter {
 
     #[view]
     public fun tokens_minted(token_minter: Object<TokenMinter>): u64 acquires TokenMinter {
-        borrow(token_minter).tokens_minted
+        let collection_obj = borrow(token_minter).collection;
+        // Borrow here is OK because we always track supply
+        *option::borrow(&collection::count(collection_obj))
     }
 
     #[view]
