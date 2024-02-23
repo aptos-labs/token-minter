@@ -67,6 +67,7 @@ module example_composable::main {
             vector[vector[]],
             vector[vector[]],
             vector[vector[]],
+            vector[user_addr],
         );
         let powerup_token_objs = mint_token_objects(
             creator,
@@ -78,12 +79,12 @@ module example_composable::main {
             vector[vector[]],
             vector[vector[]],
             vector[vector[]],
+            vector[user_addr],
         );
         let sword_token_obj = *vector::borrow(&sword_token_objs, 0);
         let powerup_token_obj = *vector::borrow(&powerup_token_objs, 0);
         let sword_token_addr = object::object_address(&sword_token_obj);
-        object::transfer(creator, sword_token_obj, user_addr);
-        object::transfer(creator, powerup_token_obj, sword_token_addr);
+        object::transfer(user, powerup_token_obj, sword_token_addr);
 
         assert!(object::owner(sword_token_obj) == user_addr, 0);
         assert!(object::owner(powerup_token_obj) == sword_token_addr, 1);

@@ -36,6 +36,7 @@ module minter::token_minter_tests {
             vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]],
             vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]],
             vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]],
+            vector[signer::address_of(creator)],
         );
 
         let i = 0;
@@ -69,6 +70,7 @@ module minter::token_minter_tests {
             vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]],
             vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]],
             vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]],
+            vector[signer::address_of(creator)],
         );
     }
 
@@ -89,6 +91,7 @@ module minter::token_minter_tests {
             vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]],
             vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]],
             vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]],
+            vector[signer::address_of(creator)],
         );
     }
 
@@ -108,6 +111,7 @@ module minter::token_minter_tests {
             vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]],
             vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]],
             vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]],
+            vector[signer::address_of(creator)],
         );
 
         let i = 0;

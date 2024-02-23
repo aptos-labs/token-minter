@@ -57,6 +57,7 @@ module minter::token_minter_apt_payment_guard_tests {
             vector[vector<String>[string::utf8(b"attack")]],
             vector[vector<String>[string::utf8(b"u64")]],
             vector[vector[bcs::to_bytes<u64>(&20)]],
+            vector[signer::address_of(user)],
         );
 
         // Check balances after payment
@@ -88,6 +89,7 @@ module minter::token_minter_apt_payment_guard_tests {
             vector[vector<String>[string::utf8(b"attack")]],
             vector[vector<String>[string::utf8(b"u64")]],
             vector[vector[bcs::to_bytes<u64>(&20)]],
+            vector[signer::address_of(user)],
         );
     }
 
@@ -117,6 +119,7 @@ module minter::token_minter_apt_payment_guard_tests {
             vector[vector<String>[string::utf8(b"attack")]],
             vector[vector<String>[string::utf8(b"u64")]],
             vector[vector[bcs::to_bytes<u64>(&20)]],
+            vector[signer::address_of(user)],
         );
 
         // Expect no APT payment made

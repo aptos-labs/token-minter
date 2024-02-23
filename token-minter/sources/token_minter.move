@@ -170,13 +170,24 @@ module minter::token_minter {
         property_keys: vector<vector<String>>,
         property_types: vector<vector<String>>,
         property_values: vector<vector<vector<u8>>>,
+        recipients: vector<address>,
     ) acquires TokenMinter, TokenMinterRefs {
         mint_token_objects(
-            minter, token_minter_object, name, description, uri, amount, property_keys, property_types, property_values,
+            minter, token_minter_object, name, description, uri, amount, property_keys, property_types, property_values, recipients,
         );
     }
 
     /// Anyone can mint if they meet all guard conditions.
+    /// @param minter The signer that is minting the tokens.
+    /// @param token_minter_object The TokenMinter object (references the collection)
+    /// @param name The name of the token.
+    /// @param description The description of the token.
+    /// @param uri The URI of the token.
+    /// @param amount The amount of tokens to mint.
+    /// @param property_keys The keys of the properties.
+    /// @param property_types The types of the properties.
+    /// @param property_values The values of the properties.
+    /// @param recipient_addrs The addresses to mint the tokens to.
     public fun mint_token_objects(
         minter: &signer,
         token_minter_object: Object<TokenMinter>,
@@ -187,15 +198,15 @@ module minter::token_minter {
         property_keys: vector<vector<String>>,
         property_types: vector<vector<String>>,
         property_values: vector<vector<vector<u8>>>,
+        recipient_addrs: vector<address>,
     ): vector<Object<Token>> acquires TokenMinter, TokenMinterRefs {
-        token_helper::validate_token_properties(amount, &property_keys, &property_types, &property_values);
+        token_helper::validate_token_properties(amount, &property_keys, &property_types, &property_values, &recipient_addrs);
 
         let token_minter = borrow_mut(token_minter_object);
         assert!(!token_minter.paused, error::invalid_state(ETOKEN_MINTER_IS_PAUSED));
 
-        let minter_address = signer::address_of(minter);
         if (token_minter.creator_mint_only) {
-            assert_token_minter_creator(minter_address, token_minter_object);
+            assert_token_minter_creator(signer::address_of(minter), token_minter_object);
         };
 
         // Must check ALL guards first before minting
@@ -205,8 +216,10 @@ module minter::token_minter {
         let i = 0;
         let token_minter_signer = &token_minter_signer(token_minter_object);
         while (i < amount) {
+            // TODO: When the collection is soulbound, we should enforce that
+            // the recipient_addr is the same as the minter's address unless the
+            // minter is the Object<TokenMinter> owner
             let token = mint_internal(
-                minter_address,
                 token_minter_signer,
                 token_minter.collection,
                 description,
@@ -215,6 +228,7 @@ module minter::token_minter {
                 *vector::borrow(&property_keys, i),
                 *vector::borrow(&property_types, i),
                 *vector::borrow(&property_values, i),
+                *vector::borrow(&recipient_addrs, i),
             );
             vector::push_back(&mut tokens, token);
             i = i + 1;
@@ -254,7 +268,6 @@ module minter::token_minter {
     }
 
     fun mint_internal(
-        minter: address,
         token_minter_signer: &signer,
         collection: Object<Collection>,
         description: String,
@@ -263,6 +276,7 @@ module minter::token_minter {
         property_keys: vector<String>,
         property_types: vector<String>,
         property_values: vector<vector<u8>>,
+        recipient_addr: address,
     ): Object<Token> {
         let token_constructor_ref = &token::create(
             token_minter_signer,
@@ -277,18 +291,18 @@ module minter::token_minter {
         property_map::init(token_constructor_ref, properties);
 
         create_token_refs_and_transfer(
-            minter,
             token_minter_signer,
             collection,
             token_constructor_ref,
+            recipient_addr,
         )
     }
 
     fun create_token_refs_and_transfer<T: key>(
-        minter: address,
         token_minter_signer: &signer,
         collection: Object<T>,
         token_constructor_ref: &ConstructorRef,
+        recipient_addr: address,
     ): Object<Token> {
         let mutator_ref = if (
             collection_properties::mutable_description(collection)
@@ -315,7 +329,7 @@ module minter::token_minter {
 
         token_helper::transfer_token(
             token_minter_signer,
-            minter,
+            recipient_addr,
             collection_properties::soulbound(collection),
             token_constructor_ref,
         )
