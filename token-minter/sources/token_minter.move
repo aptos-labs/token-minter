@@ -2,7 +2,7 @@ module minter::token_minter {
     use aptos_framework::object::{Self, ConstructorRef, Object};
     use aptos_token_objects::collection::{Self, Collection};
     use aptos_token_objects::property_map;
-    use aptos_token_objects::royalty;
+    use aptos_token_objects::royalty::{Self, Royalty};
     use aptos_token_objects::token::{Self, Token};
     use minter::apt_payment;
     use minter::collection_helper;
@@ -87,16 +87,14 @@ module minter::token_minter {
         mutable_token_uri: bool,
         tokens_burnable_by_creator: bool,
         tokens_transferable_by_creator: bool,
-        royalty_numerator: u64,
-        royalty_denominator: u64,
+        royalty: Option<Royalty>,
         creator_mint_only: bool,
         soulbound: bool,
     ) {
         init_token_minter_object(
             creator, description, max_supply, name, uri, mutable_description, mutable_royalty, mutable_uri,
             mutable_token_description, mutable_token_name, mutable_token_properties, mutable_token_uri,
-            tokens_burnable_by_creator, tokens_transferable_by_creator, royalty_numerator, royalty_denominator,
-            creator_mint_only, soulbound,
+            tokens_burnable_by_creator, tokens_transferable_by_creator, royalty, creator_mint_only, soulbound
         );
     }
 
@@ -118,8 +116,7 @@ module minter::token_minter {
         mutable_token_uri: bool,
         tokens_burnable_by_creator: bool,
         tokens_transferable_by_creator: bool,
-        royalty_numerator: u64,
-        royalty_denominator: u64,
+        royalty: Option<Royalty>,
         creator_mint_only: bool,
         soulbound: bool,
     ): Object<TokenMinter> {
@@ -130,7 +127,7 @@ module minter::token_minter {
             description,
             max_supply,
             name,
-            option::some(royalty::create(royalty_numerator, royalty_denominator, creator_address)),
+            royalty,
             uri,
         );
 
