@@ -5,7 +5,7 @@ pkgs.mkShell {
     jq
     nodePackages.nodemon
     nodejs_18
-    (callPackage ./aptos.nix { })
+    (callPackage ../aptos.nix { })
   ];
 
   shellHook = ''
