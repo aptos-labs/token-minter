@@ -39,6 +39,8 @@ module minter::token_minter {
     const EPROPERTIES_NOT_MUTABLE: u64 = 9;
     /// Not the creator of the object
     const ENOT_OBJECT_CREATOR: u64 = 10;
+    /// The caller does not own the token
+    const ENOT_TOKEN_OWNER: u64 = 11;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct TokenMinter has key {
@@ -60,8 +62,9 @@ module minter::token_minter {
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct TokenRefs has key {
-        /// Used to generate signer, needed for extending object if needed in the future.
-        extend_ref: Option<object::ExtendRef>,
+        /// Used to generate signer for the token. Can be used for extending the
+        /// token or transferring out objects from the token
+        extend_ref: object::ExtendRef,
         /// Used to burn.
         burn_ref: Option<token::BurnRef>,
         /// Used to control freeze.
@@ -325,7 +328,7 @@ module minter::token_minter {
         };
 
         move_to(&object::generate_signer(token_constructor_ref), TokenRefs {
-            extend_ref: option::some(object::generate_extend_ref(token_constructor_ref)),
+            extend_ref: object::generate_extend_ref(token_constructor_ref),
             burn_ref,
             transfer_ref,
             mutator_ref,
@@ -457,6 +460,47 @@ module minter::token_minter {
         );
         let token_refs = authorized_borrow_token_refs(token, creator);
         token::set_description(option::borrow(&token_refs.mutator_ref), description);
+    }
+
+    public entry fun transfer_object_as_creator<T: key>(
+        creator: &signer,
+        token: Object<Token>,
+        object: Object<T>,
+        to_addr: address,
+    ) acquires TokenRefs {
+        // TODO: Add checks for allowing this feature
+        // The Object storing `TokenMinterRefs` is the creator of the token
+        // collection. We need to check who is the owner of that Object
+        let token_creator = token::creator(token);
+        let token_minter_refs_object
+            = object::address_to_object<TokenMinterRefs>(token_creator);
+        assert!(
+            object::owner(token_minter_refs_object) == signer::address_of(creator),
+            ENOT_CREATOR,
+        );
+
+        let token_refs = borrow_global<TokenRefs>(token_address(&token));
+        transfer_object(token_refs, object, to_addr);
+    }
+
+    public entry fun transfer_object_as_token_owner<T: key>(
+        token_owner: &signer,
+        token: Object<Token>,
+        object: Object<T>,
+        to_addr: address,
+    ) acquires TokenRefs {
+        // TODO: Add checks for allowing this feature
+        let token_refs = authorized_borrow_token_refs(token, token_owner);
+        transfer_object(token_refs, object, to_addr);
+    }
+
+    fun transfer_object<T: key>(
+        token_refs: &TokenRefs,
+        object: Object<T>,
+        to_addr: address,
+    ) {
+        let token_refs_signer = &object::generate_signer_for_extending(&token_refs.extend_ref);
+        object::transfer(token_refs_signer, object, to_addr);
     }
 
     // ================================= View Functions ================================= //
