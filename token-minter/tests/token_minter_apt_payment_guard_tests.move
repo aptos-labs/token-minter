@@ -34,7 +34,7 @@ module minter::token_minter_apt_payment_guard_tests {
         let destination = signer::address_of(creator);
         setup_test_environment(fx, user, creator, user_initial_balance, creator_initial_balance);
 
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
 
         // Initially, apt payment should not be enabled
         assert!(!apt_payment::is_apt_payment_enabled(token_minter), 0);
@@ -47,7 +47,7 @@ module minter::token_minter_apt_payment_guard_tests {
         assert!(apt_payment::is_apt_payment_enabled(token_minter), 0);
 
         let amount = 1;
-        token_minter::mint(
+        token_minter::mint_tokens(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -76,10 +76,10 @@ module minter::token_minter_apt_payment_guard_tests {
         let creator_initial_balance = 0;
         setup_test_environment(fx, user, creator, user_initial_balance, creator_initial_balance);
 
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         token_minter::add_or_update_apt_payment_guard(creator, token_minter, apt_cost, destination);
 
-        token_minter::mint(
+        token_minter::mint_tokens(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -102,14 +102,14 @@ module minter::token_minter_apt_payment_guard_tests {
         let creator_initial_balance = 0;
         setup_test_environment(fx, user, creator, user_initial_balance, creator_initial_balance);
 
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         token_minter::add_or_update_apt_payment_guard(creator, token_minter, apt_cost, destination);
         token_minter::remove_apt_payment_guard(creator, token_minter);
 
         assert!(!apt_payment::is_apt_payment_enabled(token_minter), 0);
 
         // Mint should succeed as apt payment guard is removed.
-        token_minter::mint(
+        token_minter::mint_tokens(
             user,
             token_minter,
             string::utf8(b"TestToken"),
@@ -129,7 +129,7 @@ module minter::token_minter_apt_payment_guard_tests {
     #[test(creator = @0x123, user = @0x456)]
     #[expected_failure(abort_code = 0x10006, location = minter::token_minter)]
     fun test_non_creator_adding_apt_payment_guard(creator: &signer, user: &signer) {
-        let token_minter = token_minter_utils::init_token_minter_and_collection(creator, false, false);
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         // Attempt to add APT payment guard with non-creator signer should fail.
         token_minter::add_or_update_apt_payment_guard(user, token_minter, 50, signer::address_of(creator));
     }

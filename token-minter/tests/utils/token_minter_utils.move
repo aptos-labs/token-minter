@@ -13,7 +13,7 @@ module minter::token_minter_utils {
     const ROYALTY_NUMERATOR: u64 = 500;
     const ROYALTY_DENOMINATOR: u64 = 10000;
 
-    public fun init_token_minter_and_collection(
+    public fun init_token_minter_object_and_collection(
         creator: &signer,
         creator_mint_only: bool,
         soulbound: bool,
@@ -29,7 +29,7 @@ module minter::token_minter_utils {
         let tokens_burnable_by_creator = true;
         let tokens_freezable_by_creator = true;
 
-        let token_minter = token_minter::create_token_minter(
+        let token_minter = token_minter::init_token_minter_object(
             creator,
             string::utf8(COLLECTION_DESCRIPTION),
             max_supply,

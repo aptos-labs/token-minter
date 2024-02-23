@@ -2,7 +2,7 @@ module example_composable::main {
     #[test_only]
     use aptos_framework::object;
     #[test_only]
-    use minter::token_minter::{create_token_minter, mint_token_objects};
+    use minter::token_minter::{init_token_minter_object, mint_tokens_object};
     #[test_only]
     use std::option;
     #[test_only]
@@ -16,7 +16,7 @@ module example_composable::main {
     fun main(creator: &signer, user: &signer) {
         let user_addr = address_of(user);
 
-        let sword_token_minter_obj = create_token_minter(
+        let sword_token_minter_obj = init_token_minter_object(
             creator,
             utf8(b"sword collection"),
             option::none(),
@@ -36,7 +36,7 @@ module example_composable::main {
             true, // creator_mint_only
             false,
         );
-        let powerup_token_minter_obj = create_token_minter(
+        let powerup_token_minter_obj = init_token_minter_object(
             creator,
             utf8(b"powerup collection"),
             option::none(),
@@ -57,7 +57,7 @@ module example_composable::main {
             false,
         );
 
-        let sword_token_objs = mint_token_objects(
+        let sword_token_objs = mint_tokens_object(
             creator,
             sword_token_minter_obj,
             utf8(b"Sword"),
@@ -69,7 +69,7 @@ module example_composable::main {
             vector[vector[]],
             vector[user_addr],
         );
-        let powerup_token_objs = mint_token_objects(
+        let powerup_token_objs = mint_tokens_object(
             creator,
             powerup_token_minter_obj,
             utf8(b"Powerup"),
