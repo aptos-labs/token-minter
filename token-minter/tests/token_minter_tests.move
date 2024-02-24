@@ -9,7 +9,6 @@ module minter::token_minter_tests {
     use aptos_framework::object;
 
     use aptos_token_objects::royalty;
-    use aptos_token_objects::collection;
     use aptos_token_objects::token;
 
     use minter::token_minter;
@@ -146,9 +145,10 @@ module minter::token_minter_tests {
             vector[signer::address_of(creator)],
         );
         let minted_token = *vector::borrow(tokens, 0);
-        token_minter::set_token_description<token::Token>(creator, minted_token, string::utf8(b"UpdatedTestToken"));
+        let token_minter_signer = token_minter::token_minter_signer(token_minter);
+        token_minter::set_token_description<token::Token>(&token_minter_signer, minted_token, string::utf8(b"UpdatedTestToken"));
         let minted_token = *vector::borrow(tokens, 0);
-        assert!(collection::description(minted_token) == string::utf8(b"UpdatedTestToken"), 0);
+        assert!(token::description(minted_token) == string::utf8(b"UpdatedTestToken"), 0);
     }
 
     #[test(creator = @0x123, user = @0x456)]
