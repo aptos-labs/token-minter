@@ -37,6 +37,8 @@ module minter::token_minter {
     const ETOKEN_NOT_BURNABLE: u64 = 8;
     /// The property map being mutated is not mutable
     const EPROPERTIES_NOT_MUTABLE: u64 = 9;
+    /// Not the creator of the object
+    const ENOT_OBJECT_CREATOR: u64 = 10;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct TokenMinter has key {
@@ -492,6 +494,10 @@ module minter::token_minter {
         assert!(object::owner(object) == owner, error::invalid_argument(ENOT_OBJECT_OWNER));
     }
 
+    fun assert_creator<T: key>(creator: address, object: Object<T>) {
+        assert!(token::creator(object) == creator, error::invalid_argument(ENOT_OBJECT_CREATOR));
+    }
+
     inline fun borrow<T: key>(token_minter: Object<T>): &TokenMinter acquires TokenMinter {
         borrow_global<TokenMinter>(token_minter_address(&token_minter))
     }
@@ -506,7 +512,7 @@ module minter::token_minter {
 
     inline fun authorized_borrow_token_refs(token: Object<Token>, creator: &signer): &TokenRefs {
         let token_refs = borrow_global<TokenRefs>(token_address(&token));
-        assert_owner(signer::address_of(creator), token);
+        assert_creator(signer::address_of(creator), token);
         token_refs
     }
 
