@@ -451,14 +451,18 @@ module minter::token_minter {
 
     public entry fun set_token_description<T: key>(
         creator: &signer,
+        token_minter_object: Object<TokenMinter>,
         token: Object<Token>,
         description: String,
-    ) acquires TokenRefs {
+    ) acquires TokenRefs, TokenMinterRefs {
+        let creator_address = signer::address_of(creator);
+        assert_token_minter_creator(creator_address, token_minter_object);
         assert!(
             collection_properties::mutable_token_description(token::collection_object(token)),
             error::permission_denied(EFIELD_NOT_MUTABLE),
         );
-        token::set_description(option::borrow(&authorized_borrow_token_refs(token, creator).mutator_ref), description);
+        let token_minter_signer = token_minter_signer(token_minter_object);
+        token::set_description(option::borrow(&authorized_borrow_token_refs(token, &token_minter_signer).mutator_ref), description);
     }
 
     // ================================= View Functions ================================= //

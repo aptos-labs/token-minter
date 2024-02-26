@@ -145,8 +145,7 @@ module minter::token_minter_tests {
             vector[signer::address_of(creator)],
         );
         let minted_token = *vector::borrow(tokens, 0);
-        let token_minter_signer = token_minter::token_minter_signer(token_minter);
-        token_minter::set_token_description<token::Token>(&token_minter_signer, minted_token, string::utf8(b"UpdatedTestToken"));
+        token_minter::set_token_description<token::Token>(creator, token_minter, minted_token, string::utf8(b"UpdatedTestToken"));
         let minted_token = *vector::borrow(tokens, 0);
         assert!(token::description(minted_token) == string::utf8(b"UpdatedTestToken"), 0);
     }
