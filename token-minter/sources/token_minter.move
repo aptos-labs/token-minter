@@ -451,18 +451,15 @@ module minter::token_minter {
 
     public entry fun set_token_description<T: key>(
         creator: &signer,
-        token_minter_object: Object<TokenMinter>,
         token: Object<Token>,
         description: String,
-    ) acquires TokenRefs, TokenMinterRefs {
-        let creator_address = signer::address_of(creator);
-        assert_token_minter_creator(creator_address, token_minter_object);
+    ) acquires TokenRefs {
         assert!(
             collection_properties::mutable_token_description(token::collection_object(token)),
             error::permission_denied(EFIELD_NOT_MUTABLE),
         );
-        let token_minter_signer = token_minter_signer(token_minter_object);
-        token::set_description(option::borrow(&authorized_borrow_token_refs(token, &token_minter_signer).mutator_ref), description);
+        let token_refs = authorized_borrow_token_refs(token, creator);
+        token::set_description(option::borrow(&token_refs.mutator_ref), description);
     }
 
     // ================================= View Functions ================================= //
@@ -498,10 +495,6 @@ module minter::token_minter {
         assert!(object::owner(object) == owner, error::invalid_argument(ENOT_OBJECT_OWNER));
     }
 
-    fun assert_creator<T: key>(creator: address, object: Object<T>) {
-        assert!(token::creator(object) == creator, error::invalid_argument(ENOT_OBJECT_CREATOR));
-    }
-
     inline fun borrow<T: key>(token_minter: Object<T>): &TokenMinter acquires TokenMinter {
         borrow_global<TokenMinter>(token_minter_address(&token_minter))
     }
@@ -514,10 +507,19 @@ module minter::token_minter {
         borrow_global<TokenMinterRefs>(token_minter_address(token_minter))
     }
 
+    /// Allow borrowing the `TokenRefs` resource if the `creator` is the owner of the `token`'s collection
     inline fun authorized_borrow_token_refs(token: Object<Token>, creator: &signer): &TokenRefs {
-        let token_refs = borrow_global<TokenRefs>(token_address(&token));
-        assert_creator(signer::address_of(creator), token);
-        token_refs
+        // Ownership looks like:
+        // `creator` > `Object<TokenMinter>` > `Object<Collection>`. Therefore,
+        // to check a collection's ownership, we need to check who the
+        // `Object<TokenMinter>`'s owner is.
+        let token_creator = token::creator(token);
+        let token_minter_refs_object = object::address_to_object<TokenMinterRefs>(token_creator);
+        assert!(
+            object::owns(token_minter_refs_object, signer::address_of(creator)),
+            error::permission_denied(ENOT_OBJECT_CREATOR)
+        );
+        borrow_global<TokenRefs>(token_address(&token))
     }
 
     #[view]
