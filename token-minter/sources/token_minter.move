@@ -507,14 +507,19 @@ module minter::token_minter {
         borrow_global<TokenMinterRefs>(token_minter_address(token_minter))
     }
 
-    /// Allow borrowing the `TokenRefs` resource if the `creator` is the owner of the `token`'s collection
-    inline fun authorized_borrow_token_refs(token: Object<Token>, creator: &signer): &TokenRefs {
+    /// Allow borrowing the `TokenRefs` resource if the `creator` owns the
+    /// `token`'s corresponding `Object<TokenMinter>`
+    inline fun authorized_borrow_token_refs(
+        token: Object<Token>,
+        creator: &signer,
+    ): &TokenRefs {
         // Ownership looks like:
         // `creator` > `Object<TokenMinter>` > `Object<Collection>`. Therefore,
         // to check a collection's ownership, we need to check who the
         // `Object<TokenMinter>`'s owner is.
         let token_creator = token::creator(token);
-        let token_minter_refs_object = object::address_to_object<TokenMinterRefs>(token_creator);
+        let token_minter_refs_object =
+            object::address_to_object<TokenMinterRefs>(token_creator);
         assert!(
             object::owns(token_minter_refs_object, signer::address_of(creator)),
             error::permission_denied(ENOT_OBJECT_CREATOR)
