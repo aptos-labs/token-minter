@@ -53,7 +53,7 @@ module example_composable::main {
             false,
             false,
             false,
-            false,
+            true, // tokens_transferrable_by_creator
             option::none(),
             true, // creator_mint_only
             false,
@@ -95,11 +95,10 @@ module example_composable::main {
         assert!(object::owner(powerup_token_obj) == sword_token_addr, 1);
 
         // Transfer powerup back to the user as the collection creator
-        token_minter::transfer_object_as_creator(
+        token_minter::transfer_as_creator(
             creator,
-            sword_token_obj,
             powerup_token_obj,
-            user_addr
+            user_addr,
         );
         assert!(object::owner(powerup_token_obj) == user_addr, 2);
 
@@ -108,12 +107,7 @@ module example_composable::main {
         assert!(object::owner(powerup_token_obj) == sword_token_addr, 3);
 
         // Transfer powerup back to the user as the token owner
-        token_minter::transfer_object_as_token_owner(
-            user,
-            sword_token_obj,
-            powerup_token_obj,
-            user_addr
-        );
+        object::transfer(user, powerup_token_obj, user_addr);
         assert!(object::owner(powerup_token_obj) == user_addr, 4);
     }
 }
