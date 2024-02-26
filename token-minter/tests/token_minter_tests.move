@@ -9,6 +9,7 @@ module minter::token_minter_tests {
     use aptos_framework::object;
 
     use aptos_token_objects::royalty;
+    use aptos_token_objects::token;
 
     use minter::token_minter;
     use minter::token_minter_utils;
@@ -126,6 +127,27 @@ module minter::token_minter_tests {
     fun test_destroy_token_minter(creator: &signer) {
         let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         token_minter::destroy_token_minter(creator, token_minter);
+    }
+
+    #[test(creator = @0x123)]
+    fun test_set_token_description(creator: &signer) {
+        let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
+        let tokens = &token_minter::mint_tokens_object(
+            creator,
+            token_minter,
+            string::utf8(b"TestToken"),
+            string::utf8(b"Token desc"),
+            string::utf8(b"http://test.token.uri"),
+            1,
+            vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]],
+            vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]],
+            vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]],
+            vector[signer::address_of(creator)],
+        );
+        let minted_token = *vector::borrow(tokens, 0);
+        token_minter::set_token_description<token::Token>(creator, token_minter, minted_token, string::utf8(b"UpdatedTestToken"));
+        let minted_token = *vector::borrow(tokens, 0);
+        assert!(token::description(minted_token) == string::utf8(b"UpdatedTestToken"), 0);
     }
 
     #[test(creator = @0x123, user = @0x456)]
