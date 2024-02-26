@@ -1,11 +1,12 @@
 #[test_only]
 module minter::token_minter_utils {
-    use std::option;
-    use std::string;
     use aptos_framework::object::Object;
-
-    use minter::token_minter;
+    use aptos_token_objects::royalty;
     use minter::token_minter::TokenMinter;
+    use minter::token_minter;
+    use std::option;
+    use std::signer::{address_of};
+    use std::string;
 
     const COLLECTION_NAME: vector<u8> = b"TestCollection";
     const COLLECTION_DESCRIPTION: vector<u8> = b"Test collection tests";
@@ -44,8 +45,7 @@ module minter::token_minter_utils {
             mutable_token_uri,
             tokens_burnable_by_creator,
             tokens_transferable_by_creator,
-            ROYALTY_NUMERATOR,
-            ROYALTY_DENOMINATOR,
+            option::some(royalty::create(ROYALTY_NUMERATOR, ROYALTY_DENOMINATOR, address_of(creator))),
             creator_mint_only,
             soulbound,
         );
