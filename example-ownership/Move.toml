@@ -1,0 +1,31 @@
+[package]
+name = "ExampleOwnership"
+version = "1.0.0"
+authors = []
+
+[addresses]
+example_ownership = "_"
+
+[dev-addresses]
+example_ownership = "0x123"
+minter = "0xb04204ddbcf130b6d1accfdd2e9593275cb6d4777d70ebd41a4799c007c55a2b"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "main"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dependencies.AptosTokenObjects]
+git = 'https://github.com/aptos-labs/aptos-core.git'
+rev = 'main'
+subdir = 'aptos-move/framework/aptos-token-objects'
+
+[dependencies.AptosToken]
+git = 'https://github.com/aptos-labs/aptos-core.git'
+rev = 'main'
+subdir = 'aptos-move/framework/aptos-token'
+
+[dependencies.TokenMinter]
+local = "../token-minter"
+
+[dev-dependencies]
