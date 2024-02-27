@@ -26,8 +26,6 @@ rev = 'main'
 subdir = 'aptos-move/framework/aptos-token'
 
 [dependencies.TokenMinter]
-git = 'https://github.com/aptos-labs/token-minter'
-rev = 'main'
-subdir = 'token-minter'
+local = "../token-minter"
 
 [dev-dependencies]
