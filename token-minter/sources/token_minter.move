@@ -213,7 +213,7 @@ module minter::token_minter {
 
         let tokens = vector[];
         let i = 0;
-        let token_minter_signer = &token_minter_signer(token_minter_object);
+        let token_minter_signer = &token_minter_signer_internal(token_minter_object);
         while (i < amount) {
             // TODO: When the collection is soulbound, we should enforce that
             // the recipient_addr is the same as the minter's address unless the
@@ -351,7 +351,7 @@ module minter::token_minter {
         assert_token_minter_creator(signer::address_of(creator), token_minter);
 
         whitelist::add_or_update_whitelist(
-            &token_minter_signer(token_minter),
+            &token_minter_signer_internal(token_minter),
             token_minter,
             whitelisted_addresses,
             max_mint_per_whitelists
@@ -370,7 +370,7 @@ module minter::token_minter {
         destination: address,
     ) acquires TokenMinterRefs {
         assert_token_minter_creator(signer::address_of(creator), token_minter);
-        apt_payment::add_or_update_apt_payment(&token_minter_signer(token_minter), token_minter, amount, destination);
+        apt_payment::add_or_update_apt_payment(&token_minter_signer_internal(token_minter), token_minter, amount, destination);
     }
 
     public entry fun remove_apt_payment_guard(
@@ -461,7 +461,7 @@ module minter::token_minter {
 
     // ================================= View Functions ================================= //
 
-    fun token_minter_signer(token_minter: Object<TokenMinter>): signer acquires TokenMinterRefs {
+    fun token_minter_signer_internal(token_minter: Object<TokenMinter>): signer acquires TokenMinterRefs {
         let extend_ref = &borrow_refs(&token_minter).extend_ref;
         object::generate_signer_for_extending(extend_ref)
     }
@@ -522,6 +522,14 @@ module minter::token_minter {
             error::permission_denied(ENOT_OBJECT_CREATOR)
         );
         borrow_global<TokenRefs>(token_address(&token))
+    }
+
+    #[view]
+    public fun token_minter_signer(creator: &signer, token_minter: Object<TokenMinter>): signer acquires TokenMinterRefs {
+        let creator_address = signer::address_of(creator);
+        assert_owner(creator_address, token_minter);
+        let extend_ref = &borrow_refs(&token_minter).extend_ref;
+        object::generate_signer_for_extending(extend_ref)
     }
 
     #[view]
