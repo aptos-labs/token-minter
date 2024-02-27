@@ -39,6 +39,10 @@ module minter::token_minter {
     const EPROPERTIES_NOT_MUTABLE: u64 = 9;
     /// Not the creator of the object
     const ENOT_OBJECT_CREATOR: u64 = 10;
+    /// The caller does not own the token
+    const ENOT_TOKEN_OWNER: u64 = 11;
+    /// The token does not support forced transfers
+    const ETOKEN_NOT_TRANSFERABLE: u64 = 12;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct TokenMinter has key {
@@ -60,8 +64,9 @@ module minter::token_minter {
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct TokenRefs has key {
-        /// Used to generate signer, needed for extending object if needed in the future.
-        extend_ref: Option<object::ExtendRef>,
+        /// Used to generate signer for the token. Can be used for extending the
+        /// token or transferring out objects from the token
+        extend_ref: object::ExtendRef,
         /// Used to burn.
         burn_ref: Option<token::BurnRef>,
         /// Used to control freeze.
@@ -325,7 +330,7 @@ module minter::token_minter {
         };
 
         move_to(&object::generate_signer(token_constructor_ref), TokenRefs {
-            extend_ref: option::some(object::generate_extend_ref(token_constructor_ref)),
+            extend_ref: object::generate_extend_ref(token_constructor_ref),
             burn_ref,
             transfer_ref,
             mutator_ref,
@@ -457,6 +462,20 @@ module minter::token_minter {
         );
         let token_refs = authorized_borrow_token_refs(token, creator);
         token::set_description(option::borrow(&token_refs.mutator_ref), description);
+    }
+
+    /// Force transfer a token as the collection creator. Feature only works if
+    /// the `TransferRef` is stored in the `TokenRefs`.
+    public entry fun transfer_as_creator(
+        creator: &signer,
+        token: Object<Token>,
+        to_addr: address,
+    ) acquires TokenRefs {
+        let token_refs = authorized_borrow_token_refs(token, creator);
+        assert!(option::is_some(&token_refs.transfer_ref), ETOKEN_NOT_TRANSFERABLE);
+        let transfer_ref = option::borrow(&token_refs.transfer_ref);
+        let linear_transfer_ref = object::generate_linear_transfer_ref(transfer_ref);
+        object::transfer_with_ref(linear_transfer_ref, to_addr)
     }
 
     // ================================= View Functions ================================= //

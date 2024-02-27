@@ -2,7 +2,11 @@ module example_composable::main {
     #[test_only]
     use aptos_framework::object;
     #[test_only]
-    use minter::token_minter::{init_token_minter_object, mint_tokens_object};
+    use minter::token_minter::{
+        Self,
+        init_token_minter_object,
+        mint_tokens_object
+    };
     #[test_only]
     use std::option;
     #[test_only]
@@ -49,7 +53,7 @@ module example_composable::main {
             false,
             false,
             false,
-            false,
+            true, // tokens_transferrable_by_creator
             option::none(),
             true, // creator_mint_only
             false,
@@ -67,6 +71,10 @@ module example_composable::main {
             vector[vector[]],
             vector[user_addr],
         );
+        let sword_token_obj = *vector::borrow(&sword_token_objs, 0);
+        let sword_token_addr = object::object_address(&sword_token_obj);
+        assert!(object::owner(sword_token_obj) == user_addr, 0);
+
         let powerup_token_objs = mint_tokens_object(
             creator,
             powerup_token_minter_obj,
@@ -79,15 +87,27 @@ module example_composable::main {
             vector[vector[]],
             vector[user_addr],
         );
-        let sword_token_obj = *vector::borrow(&sword_token_objs, 0);
         let powerup_token_obj = *vector::borrow(&powerup_token_objs, 0);
-        let sword_token_addr = object::object_address(&sword_token_obj);
-        object::transfer(user, powerup_token_obj, sword_token_addr);
+        assert!(object::owner(powerup_token_obj) == user_addr, 0);
 
-        assert!(object::owner(sword_token_obj) == user_addr, 0);
+        // Transfer powerup to the sword
+        object::transfer(user, powerup_token_obj, sword_token_addr);
         assert!(object::owner(powerup_token_obj) == sword_token_addr, 1);
 
-        // TODO: Test sword token owner transferring out the powerup token
-        // TODO: Test collection owner transferring out the powerup token
+        // Transfer powerup back to the user as the collection creator
+        token_minter::transfer_as_creator(
+            creator,
+            powerup_token_obj,
+            user_addr,
+        );
+        assert!(object::owner(powerup_token_obj) == user_addr, 2);
+
+        // Transfer powerup to the sword
+        object::transfer(user, powerup_token_obj, sword_token_addr);
+        assert!(object::owner(powerup_token_obj) == sword_token_addr, 3);
+
+        // Transfer powerup back to the user as the token owner
+        object::transfer(user, powerup_token_obj, user_addr);
+        assert!(object::owner(powerup_token_obj) == user_addr, 4);
     }
 }
