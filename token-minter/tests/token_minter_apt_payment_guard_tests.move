@@ -53,10 +53,10 @@ module minter::token_minter_apt_payment_guard_tests {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            amount,
-            vector[vector<String>[string::utf8(b"attack")]],
-            vector[vector<String>[string::utf8(b"u64")]],
-            vector[vector[bcs::to_bytes<u64>(&20)]],
+            vector[amount],
+            vector[vector[vector<String>[string::utf8(b"attack")]]],
+            vector[vector[vector<String>[string::utf8(b"u64")]]],
+            vector[vector[vector[bcs::to_bytes<u64>(&20)]]],
             vector[signer::address_of(user)],
         );
 
@@ -85,10 +85,10 @@ module minter::token_minter_apt_payment_guard_tests {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            1,
-            vector[vector<String>[string::utf8(b"attack")]],
-            vector[vector<String>[string::utf8(b"u64")]],
-            vector[vector[bcs::to_bytes<u64>(&20)]],
+            vector[1],
+            vector[vector[vector<String>[string::utf8(b"attack")]]],
+            vector[vector[vector<String>[string::utf8(b"u64")]]],
+            vector[vector[vector[bcs::to_bytes<u64>(&20)]]],
             vector[signer::address_of(user)],
         );
     }
@@ -115,10 +115,10 @@ module minter::token_minter_apt_payment_guard_tests {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            1,
-            vector[vector<String>[string::utf8(b"attack")]],
-            vector[vector<String>[string::utf8(b"u64")]],
-            vector[vector[bcs::to_bytes<u64>(&20)]],
+            vector[1],
+            vector[vector[vector<String>[string::utf8(b"attack")]]],
+            vector[vector[vector<String>[string::utf8(b"u64")]]],
+            vector[vector[vector[bcs::to_bytes<u64>(&20)]]],
             vector[signer::address_of(user)],
         );
 

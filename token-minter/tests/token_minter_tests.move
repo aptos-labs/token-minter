@@ -33,10 +33,10 @@ module minter::token_minter_tests {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            amount,
-            vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]],
-            vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]],
-            vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]],
+            vector[amount],
+            vector[vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]]],
+            vector[vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]]],
+            vector[vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]]],
             vector[signer::address_of(creator)],
         );
 
@@ -67,10 +67,10 @@ module minter::token_minter_tests {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            1,
-            vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]],
-            vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]],
-            vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]],
+            vector[1],
+            vector[vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]]],
+            vector[vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]]],
+            vector[vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]]],
             vector[signer::address_of(creator)],
         );
     }
@@ -88,10 +88,10 @@ module minter::token_minter_tests {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            1,
-            vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]],
-            vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]],
-            vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]],
+            vector[1],
+            vector[vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]]],
+            vector[vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]]],
+            vector[vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]]],
             vector[signer::address_of(creator)],
         );
     }
@@ -108,10 +108,10 @@ module minter::token_minter_tests {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            1,
-            vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]],
-            vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]],
-            vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]],
+            vector[1],
+            vector[vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]]],
+            vector[vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]]],
+            vector[vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]]],
             vector[signer::address_of(creator)],
         );
 
@@ -138,10 +138,10 @@ module minter::token_minter_tests {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            1,
-            vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]],
-            vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]],
-            vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]],
+            vector[1],
+            vector[vector[vector<String>[string::utf8(b"attack"), string::utf8(b"num_of_use")]]],
+            vector[vector[vector<String>[string::utf8(b"u64"), string::utf8(b"u64")]]],
+            vector[vector[vector<vector<u8>>[bcs::to_bytes<u64>(&10), bcs::to_bytes<u64>(&5)]]],
             vector[signer::address_of(creator)],
         );
         let minted_token = *vector::borrow(tokens, 0);

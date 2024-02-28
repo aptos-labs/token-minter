@@ -14,20 +14,30 @@ module minter::token_helper {
     const EMINT_PROPERTIES_ARGUMENT_MISMATCH: u64 = 1;
 
     public(friend) fun validate_token_properties(
-        amount: u64,
-        property_keys: &vector<vector<String>>,
-        property_types: &vector<vector<String>>,
-        property_values: &vector<vector<vector<u8>>>,
+        amount: vector<u64>,
+        property_keys: &vector<vector<vector<String>>>,
+        property_types: &vector<vector<vector<String>>>,
+        property_values: &vector<vector<vector<vector<u8>>>>,
         recipient_addrs: &vector<address>,
     ) {
+        let recipient_count: u64 = vector::length(recipient_addrs);
         assert!(
-            vector::length(property_keys) == amount
-                && vector::length(property_types) == amount
-                && vector::length(property_values) == amount
-                && vector::length(recipient_addrs) == amount,
+            recipient_count == vector::length(&amount),
             error::invalid_argument(EMINT_PROPERTIES_ARGUMENT_MISMATCH),
         );
+
+        let i = 0;
+        while (i < recipient_count) {
+            assert!(
+                vector::length(vector::borrow(property_keys, i)) == *vector::borrow(&amount, i) &&
+                vector::length(vector::borrow(property_types, i)) == *vector::borrow(&amount, i) &&
+                vector::length(vector::borrow(property_values, i)) == *vector::borrow(&amount, i),
+                error::invalid_argument(EMINT_PROPERTIES_ARGUMENT_MISMATCH),
+            );
+            i = i + 1;
+        }
     }
+
 
     public(friend) fun transfer_token(
         owner: &signer,

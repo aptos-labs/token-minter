@@ -164,16 +164,29 @@ module minter::token_minter {
         )
     }
 
+    /// Anyone can mint if they meet all guard conditions.
+    /// @param minter The signer that is minting the tokens.
+    /// @param token_minter_object The TokenMinter object (references the collection)
+    /// @param name The name of the token.
+    /// @param description The description of the token.
+    /// @param uri The URI of the token.
+    /// @param amount The amount of tokens to mint per recipient.
+    /// @param property_keys The keys of the properties per amount per recipient.
+    /// @param property_types The types of the properties per amount per recipient.
+    /// @param property_values The values of the properties per amount per recipient.
+    /// @param recipient_addrs The addresses to mint the amounted tokens to.
     public entry fun mint_tokens(
         minter: &signer,
         token_minter_object: Object<TokenMinter>,
         name: String,
         description: String,
         uri: String,
-        amount: u64,
-        property_keys: vector<vector<String>>,
-        property_types: vector<vector<String>>,
-        property_values: vector<vector<vector<u8>>>,
+        // TODO(jill): i hate the fact that we need to pass in these property details in such nested structures for either batch or single mint
+        // will need to figure out a more user friendly way...
+        amount: vector<u64>,
+        property_keys: vector<vector<vector<String>>>,
+        property_types: vector<vector<vector<String>>>,
+        property_values: vector<vector<vector<vector<u8>>>>,
         recipient_addrs: vector<address>,
     ) acquires TokenMinter, TokenMinterRefs {
         mint_tokens_object(
@@ -181,27 +194,16 @@ module minter::token_minter {
         );
     }
 
-    /// Anyone can mint if they meet all guard conditions.
-    /// @param minter The signer that is minting the tokens.
-    /// @param token_minter_object The TokenMinter object (references the collection)
-    /// @param name The name of the token.
-    /// @param description The description of the token.
-    /// @param uri The URI of the token.
-    /// @param amount The amount of tokens to mint.
-    /// @param property_keys The keys of the properties.
-    /// @param property_types The types of the properties.
-    /// @param property_values The values of the properties.
-    /// @param recipient_addrs The addresses to mint the tokens to.
     public fun mint_tokens_object(
         minter: &signer,
         token_minter_object: Object<TokenMinter>,
         name: String,
         description: String,
         uri: String,
-        amount: u64,
-        property_keys: vector<vector<String>>,
-        property_types: vector<vector<String>>,
-        property_values: vector<vector<vector<u8>>>,
+        amount: vector<u64>,
+        property_keys: vector<vector<vector<String>>>,
+        property_types: vector<vector<vector<String>>>,
+        property_values: vector<vector<vector<vector<u8>>>>,
         recipient_addrs: vector<address>,
     ): vector<Object<Token>> acquires TokenMinter, TokenMinterRefs {
         token_helper::validate_token_properties(amount, &property_keys, &property_types, &property_values, &recipient_addrs);
@@ -214,27 +216,44 @@ module minter::token_minter {
         };
 
         // Must check ALL guards first before minting
-        check_and_execute_guards(minter, token_minter_object, amount);
+        let total_amount: u64 = 0;
+        let len = vector::length(&amount);
+        let i = 0;
+
+        while (i < len) {
+            total_amount = total_amount + *vector::borrow(&amount, i);
+            i = i + 1;
+        };
+        check_and_execute_guards(minter, token_minter_object, total_amount);
 
         let tokens = vector[];
         let i = 0;
+        let recipient_count = vector::length(&recipient_addrs);
         let token_minter_signer = &token_minter_signer_internal(token_minter_object);
-        while (i < amount) {
-            // TODO: When the collection is soulbound, we should enforce that
-            // the recipient_addr is the same as the minter's address unless the
-            // minter is the Object<TokenMinter> owner
-            let token = mint_internal(
-                token_minter_signer,
-                token_minter.collection,
-                description,
-                name,
-                uri,
-                *vector::borrow(&property_keys, i),
-                *vector::borrow(&property_types, i),
-                *vector::borrow(&property_values, i),
-                *vector::borrow(&recipient_addrs, i),
-            );
-            vector::push_back(&mut tokens, token);
+
+        while (i < recipient_count) {
+            let num_tokens = *vector::borrow(&amount, i);
+
+            let j = 0;
+            while (j < num_tokens) {
+                // TODO: When the collection is soulbound, we should enforce that
+                // the recipient_addr is the same as the minter's address unless the
+                // minter is the Object<TokenMinter> owner
+                let token = mint_internal(
+                    token_minter_signer,
+                    token_minter.collection,
+                    description,
+                    name,
+                    uri,
+                    *vector::borrow(vector::borrow(&property_keys, i), j),
+                    *vector::borrow(vector::borrow(&property_types, i), j),
+                    *vector::borrow(vector::borrow(&property_values, i), j),
+                    *vector::borrow(&recipient_addrs, i),
+                );
+                vector::push_back(&mut tokens, token);
+                j = j + 1;
+            };
+
             i = i + 1;
         };
 

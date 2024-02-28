@@ -64,10 +64,10 @@ module example_ownership::part1 {
             utf8(b"test token"),
             utf8(b"test token description"),
             utf8(b"https://www.google.com"),
-            1,
-            vector[vector[]],
-            vector[vector[]],
-            vector[vector[]],
+            vector[1],
+            vector[vector[vector[]]],
+            vector[vector[vector[]]],
+            vector[vector[vector[]]],
             vector[minter_addr],
         );
         let minted_token = *vector::borrow(&minted_tokens_object, 0);

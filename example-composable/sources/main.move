@@ -65,10 +65,10 @@ module example_composable::main {
             utf8(b"Sword"),
             utf8(b"A fancy sword"),
             utf8(b"https://example.com/sword1.png"),
-            1,
-            vector[vector[]],
-            vector[vector[]],
-            vector[vector[]],
+            vector[1],
+            vector[vector[vector[]]],
+            vector[vector[vector[]]],
+            vector[vector[vector[]]],
             vector[user_addr],
         );
         let sword_token_obj = *vector::borrow(&sword_token_objs, 0);
@@ -81,10 +81,10 @@ module example_composable::main {
             utf8(b"Powerup"),
             utf8(b"A fancy powerup"),
             utf8(b"https://example.com/powerup1.png"),
-            1,
-            vector[vector[]],
-            vector[vector[]],
-            vector[vector[]],
+            vector[1],
+            vector[vector[vector[]]],
+            vector[vector[vector[]]],
+            vector[vector[vector[]]],
             vector[user_addr],
         );
         let powerup_token_obj = *vector::borrow(&powerup_token_objs, 0);

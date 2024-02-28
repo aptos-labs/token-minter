@@ -31,10 +31,37 @@ module minter::token_minter_with_guards_test {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            whitelist_amount,
-            vector[vector<String>[string::utf8(b"attack")], vector<String>[string::utf8(b"defense")]],
-            vector[vector<String>[string::utf8(b"u64")], vector<String>[string::utf8(b"u64")]],
-            vector[vector[bcs::to_bytes<u64>(&20)], vector[bcs::to_bytes<u64>(&10)]],
+            vector[whitelist_amount - 1, whitelist_amount - 1],
+            vector[
+                vector[
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")],
+                ],
+                vector[
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")],
+                ]
+            ],
+            vector[
+                vector[
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")],
+                ],
+                vector[
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")],
+                ]
+            ],
+            vector[
+                vector[
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ],
+                ],
+                vector[
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ],
+                ]
+            ],
             vector[user_addr, user_addr],
         );
 
@@ -55,10 +82,49 @@ module minter::token_minter_with_guards_test {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            2,
-            vector[vector<String>[string::utf8(b"attack")], vector<String>[string::utf8(b"defense")]],
-            vector[vector<String>[string::utf8(b"u64")], vector<String>[string::utf8(b"u64")]],
-            vector[vector[bcs::to_bytes<u64>(&20)], vector[bcs::to_bytes<u64>(&10)]],
+            vector[2, 2],
+            vector[
+                vector[
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")],
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")] 
+                ],
+                vector[
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")],
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")] 
+                ]
+            ],
+            vector[
+                vector[
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")],
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")] 
+                ],
+                vector[
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")],
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")] 
+                ]
+            ],
+            vector[
+                vector[
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ],
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ]
+                ],
+                vector[
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ],
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ]
+                ]
+            ],
             vector[user_addr, user_addr],
         );
     }
@@ -83,10 +149,49 @@ module minter::token_minter_with_guards_test {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            2,
-            vector[vector<String>[string::utf8(b"attack")], vector<String>[string::utf8(b"defense")]],
-            vector[vector<String>[string::utf8(b"u64")], vector<String>[string::utf8(b"u64")]],
-            vector[vector[bcs::to_bytes<u64>(&20)], vector[bcs::to_bytes<u64>(&10)]],
+            vector[2, 2],
+            vector[
+                vector[
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")],
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")] 
+                ],
+                vector[
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")],
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")] 
+                ]
+            ],
+            vector[
+                vector[
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")],
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")] 
+                ],
+                vector[
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")],
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")] 
+                ]
+            ],
+            vector[
+                vector[
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ],
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ]
+                ],
+                vector[
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ],
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ]
+                ]
+            ],
             vector[user_addr, user_addr],
         );
     }
@@ -108,10 +213,49 @@ module minter::token_minter_with_guards_test {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            whitelisted_amount + 1,
-            vector[vector<String>[string::utf8(b"attack")], vector<String>[string::utf8(b"defense")]],
-            vector[vector<String>[string::utf8(b"u64")], vector<String>[string::utf8(b"u64")]],
-            vector[vector[bcs::to_bytes<u64>(&20)], vector[bcs::to_bytes<u64>(&10)]],
+            vector[whitelisted_amount + 1, whitelisted_amount + 1],
+            vector[
+                vector[
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")],
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")] 
+                ],
+                vector[
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")],
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")] 
+                ]
+            ],
+            vector[
+                vector[
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")],
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")] 
+                ],
+                vector[
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")],
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")] 
+                ]
+            ],
+            vector[
+                vector[
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ],
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ]
+                ],
+                vector[
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ],
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ]
+                ]
+            ],
             vector[user_addr, user_addr],
         );
     }
@@ -133,10 +277,49 @@ module minter::token_minter_with_guards_test {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            2,
-            vector[vector<String>[string::utf8(b"attack")], vector<String>[string::utf8(b"defense")]],
-            vector[vector<String>[string::utf8(b"u64")], vector<String>[string::utf8(b"u64")]],
-            vector[vector[bcs::to_bytes<u64>(&20)], vector[bcs::to_bytes<u64>(&10)]],
+            vector[2, 2],
+            vector[
+                vector[
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")],
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")] 
+                ],
+                vector[
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")],
+                    vector[string::utf8(b"attack"), string::utf8(b"defense")] 
+                ]
+            ],
+            vector[
+                vector[
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")],
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")] 
+                ],
+                vector[
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")],
+                    vector[string::utf8(b"u64"), string::utf8(b"u64")] 
+                ]
+            ],
+            vector[
+                vector[
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ],
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ]
+                ],
+                vector[
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ],
+                    vector[
+                        bcs::to_bytes<u64>(&20),
+                        bcs::to_bytes<u64>(&10) 
+                    ]
+                ]
+            ],
             vector[user_addr, user_addr],
         );
     }
@@ -156,10 +339,10 @@ module minter::token_minter_with_guards_test {
             string::utf8(b"TestToken"),
             string::utf8(b"Token desc"),
             string::utf8(b"http://test.token.uri"),
-            amount,
-            vector[vector<String>[string::utf8(b"attack")]],
-            vector[vector<String>[string::utf8(b"u64")]],
-            vector[vector[bcs::to_bytes<u64>(&20)]],
+            vector[amount],
+            vector[vector[vector<String>[string::utf8(b"attack")]]],
+            vector[vector[vector<String>[string::utf8(b"u64")]]],
+            vector[vector[vector[bcs::to_bytes<u64>(&20)]]],
             vector[signer::address_of(user)],
         );
 
