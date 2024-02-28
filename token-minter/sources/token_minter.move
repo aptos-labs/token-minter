@@ -460,7 +460,7 @@ module minter::token_minter {
             collection_properties::mutable_token_description(token::collection_object(token)),
             error::permission_denied(EFIELD_NOT_MUTABLE),
         );
-        let token_refs = authorized_borrow_token_refs(token, creator);
+        let token_refs = authorized_borrow_token_refs(creator, token);
         token::set_description(option::borrow(&token_refs.mutator_ref), description);
     }
 
@@ -471,7 +471,7 @@ module minter::token_minter {
         token: Object<Token>,
         to_addr: address,
     ) acquires TokenRefs {
-        let token_refs = authorized_borrow_token_refs(token, creator);
+        let token_refs = authorized_borrow_token_refs(creator, token);
         assert!(option::is_some(&token_refs.transfer_ref), ETOKEN_NOT_TRANSFERABLE);
         let transfer_ref = option::borrow(&token_refs.transfer_ref);
         let linear_transfer_ref = object::generate_linear_transfer_ref(transfer_ref);
@@ -526,8 +526,8 @@ module minter::token_minter {
     /// Allow borrowing the `TokenRefs` resource if the `creator` owns the
     /// `token`'s corresponding `Object<TokenMinter>`
     inline fun authorized_borrow_token_refs(
-        token: Object<Token>,
         creator: &signer,
+        token: Object<Token>,
     ): &TokenRefs {
         // Ownership looks like:
         // `creator` > `Object<TokenMinter>` > `Object<Collection>`. Therefore,
