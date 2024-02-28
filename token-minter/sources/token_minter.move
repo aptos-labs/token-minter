@@ -15,6 +15,7 @@ module minter::token_minter {
     use std::signer;
     use std::string::String;
     use std::vector;
+    use aptos_framework::event;
 
     /// Current version of the token minter
     const VERSION: u64 = 1;
@@ -75,6 +76,15 @@ module minter::token_minter {
         mutator_ref: Option<token::MutatorRef>,
         /// Used to mutate properties
         property_mutator_ref: property_map::MutatorRef,
+    }
+
+    #[event]
+    /// Event emitted when the TokenMinter is initialized.
+    struct InitTokenMinter has drop, store {
+        token_minter: Object<TokenMinter>,
+        collection: Object<Collection>,
+        paused: bool,
+        creator_mint_only: bool,
     }
 
     public entry fun init_token_minter(
@@ -156,7 +166,7 @@ module minter::token_minter {
             soulbound,
         );
 
-        init_token_minter_object_object(
+        init_token_minter_object_internal(
             &object_signer,
             &constructor_ref,
             object::object_from_constructor_ref(collection_constructor_ref),
@@ -254,21 +264,25 @@ module minter::token_minter {
         };
     }
 
-    fun init_token_minter_object_object(
+    fun init_token_minter_object_internal(
         object_signer: &signer,
         constructor_ref: &ConstructorRef,
         collection: Object<Collection>,
         creator_mint_only: bool,
     ): Object<TokenMinter> {
+        let paused = false;
         move_to(object_signer, TokenMinter {
             version: VERSION,
             collection,
-            paused: false,
+            paused,
             creator_mint_only,
         });
         move_to(object_signer, TokenMinterRefs { extend_ref: object::generate_extend_ref(constructor_ref) });
 
-        object::object_from_constructor_ref(constructor_ref)
+        let token_minter = object::object_from_constructor_ref(constructor_ref);
+        event::emit(InitTokenMinter { token_minter, collection, paused, creator_mint_only });
+
+        token_minter
     }
 
     fun mint_internal(
