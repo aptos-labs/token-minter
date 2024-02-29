@@ -1,5 +1,5 @@
 #[test_only]
-module minter::token_minter_with_guards_test {
+module minter::token_minter_whitelist_extension_tests {
     use std::bcs;
     use std::signer;
     use std::string;
@@ -10,7 +10,7 @@ module minter::token_minter_with_guards_test {
     use minter::whitelist;
 
     #[test(creator = @0x123, user = @0x456)]
-    fun test_add_whitelist_guard_and_mint(creator: &signer, user: &signer) {
+    fun test_add_whitelist_extension_and_mint(creator: &signer, user: &signer) {
         let whitelist_amount = 2;
         let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         let whitelisted_addrs = vector[signer::address_of(creator), signer::address_of(user)];
@@ -117,13 +117,13 @@ module minter::token_minter_with_guards_test {
     }
 
     #[test(creator = @0x123, user = @0x456)]
-    fun test_mint_success_when_whitelist_guard_removed(creator: &signer, user: &signer) {
+    fun test_mint_success_when_whitelist_extension_removed(creator: &signer, user: &signer) {
         let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
         let whitelisted_addrs = vector[signer::address_of(creator), signer::address_of(user)];
         let whitelisted_amounts_per_user = vector[2, 2];
         token_minter::add_or_update_whitelist(creator, token_minter, whitelisted_addrs, whitelisted_amounts_per_user);
 
-        token_minter::remove_whitelist_guard(creator, token_minter);
+        token_minter::remove_whitelist_extension(creator, token_minter);
 
         // Attempting to mint more than allowed
         let user_addr = signer::address_of(user);
@@ -177,6 +177,6 @@ module minter::token_minter_with_guards_test {
     #[expected_failure(abort_code = 0x010006, location = minter::token_minter)]
     fun test_non_creator_removing_whitelist(creator: &signer, user: &signer) {
         let token_minter = token_minter_utils::init_token_minter_object_and_collection(creator, false, false);
-        token_minter::remove_whitelist_guard(user, token_minter);
+        token_minter::remove_whitelist_extension(user, token_minter);
     }
 }

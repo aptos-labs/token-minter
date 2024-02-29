@@ -47,7 +47,7 @@ module minter::token_minter_tests {
             i = i + 1;
         };
 
-        // No guards added, so we expect a seamless mint.
+        // No extensions added, so we expect a seamless mint.
         assert!(token_minter::tokens_minted(token_minter) == previous_minted_amount + amount, 0);
 
         // Test royalty object creation
