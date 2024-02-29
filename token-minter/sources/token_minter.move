@@ -59,7 +59,7 @@ module minter::token_minter {
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct TokenMinterRefs has key {
-        /// Used to generate signer, needed for adding additional guards and minting tokens.
+        /// Used to generate signer, needed for adding additional extensions and minting tokens.
         extend_ref: object::ExtendRef,
     }
 
@@ -191,7 +191,7 @@ module minter::token_minter {
         );
     }
 
-    /// Anyone can mint if they meet all guard conditions.
+    /// Anyone can mint if they meet all extension conditions.
     /// @param minter The signer that is minting the tokens.
     /// @param token_minter_object The TokenMinter object (references the collection)
     /// @param name The name of the token.
@@ -223,8 +223,8 @@ module minter::token_minter {
             assert_token_minter_creator(signer::address_of(minter), token_minter_object);
         };
 
-        // Must check ALL guards first before minting
-        check_and_execute_guards(minter, token_minter_object, amount);
+        // Must check ALL extensions first before minting
+        check_and_execute_extensions(minter, token_minter_object, amount);
 
         let tokens = vector[];
         let i = 0;
@@ -251,9 +251,9 @@ module minter::token_minter {
         tokens
     }
 
-    /// This function checks all guards the `token_minter` has and executes them if they are enabled.
-    /// This function reverts if any of the guards fail.
-    fun check_and_execute_guards(minter: &signer, token_minter: Object<TokenMinter>, amount: u64) {
+    /// This function checks all extensions the `token_minter` has and executes them if they are enabled.
+    /// This function reverts if any of the extensions fail.
+    fun check_and_execute_extensions(minter: &signer, token_minter: Object<TokenMinter>, amount: u64) {
         let minter_address = signer::address_of(minter);
 
         if (whitelist::is_whitelist_enabled(token_minter)) {
@@ -359,7 +359,7 @@ module minter::token_minter {
         )
     }
 
-    // ================================= Guards ================================= //
+    // ================================= extensions ================================= //
 
     public entry fun add_or_update_whitelist(
         creator: &signer,
@@ -377,12 +377,12 @@ module minter::token_minter {
         );
     }
 
-    public entry fun remove_whitelist_guard(creator: &signer, token_minter: Object<TokenMinter>) {
+    public entry fun remove_whitelist_extension(creator: &signer, token_minter: Object<TokenMinter>) {
         assert_token_minter_creator(signer::address_of(creator), token_minter);
         whitelist::remove_whitelist(token_minter);
     }
 
-    public entry fun add_or_update_apt_payment_guard(
+    public entry fun add_or_update_apt_payment_extension(
         creator: &signer,
         token_minter: Object<TokenMinter>,
         amount: u64,
@@ -392,7 +392,7 @@ module minter::token_minter {
         apt_payment::add_or_update_apt_payment(&token_minter_signer_internal(token_minter), token_minter, amount, destination);
     }
 
-    public entry fun remove_apt_payment_guard(
+    public entry fun remove_apt_payment_extension(
         creator: &signer,
         token_minter: Object<TokenMinter>
     ) {
