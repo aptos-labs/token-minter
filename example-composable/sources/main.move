@@ -3,7 +3,6 @@ module example_composable::main {
     use aptos_framework::object;
     #[test_only]
     use minter::token_minter::{
-        Self,
         init_token_minter_object,
         mint_tokens_object
     };
@@ -15,6 +14,8 @@ module example_composable::main {
     use std::string::{utf8};
     #[test_only]
     use std::vector;
+    #[test_only]
+    use minter::token_refs;
 
     #[test(creator = @0x123, user = @0x456)]
     fun main(creator: &signer, user: &signer) {
@@ -95,7 +96,7 @@ module example_composable::main {
         assert!(object::owner(powerup_token_obj) == sword_token_addr, 1);
 
         // Transfer powerup back to the user as the collection creator
-        token_minter::transfer_as_creator(
+        token_refs::transfer_as_creator(
             creator,
             powerup_token_obj,
             user_addr,
