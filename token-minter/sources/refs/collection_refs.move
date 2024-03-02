@@ -36,10 +36,13 @@ module minter::collection_refs {
         extend_ref: Option<object::ExtendRef>,
     }
 
-    public(friend) fun get_signer(obj_addr: address): Option<signer> acquires CollectionRefs {
-        assert!(contains_collection_refs(obj_addr), EOBJECT_HAS_NO_REFS);
-
-        let refs = borrow_global<CollectionRefs>(obj_addr);
+    #[view]
+    /// Can only be called if the `creator` is the owner of the collection.
+    public fun collection_object_signer<T: key>(
+        creator: &signer,
+        collection: Object<T>,
+    ): Option<signer> acquires CollectionRefs {
+        let refs = authorized_borrow(collection, creator);
         if (option::is_some(&refs.extend_ref)) {
             let extend_ref = option::borrow(&refs.extend_ref);
             option::some(object::generate_signer_for_extending(extend_ref))
@@ -53,7 +56,7 @@ module minter::collection_refs {
         mutable_description: bool,
         mutable_uri: bool,
         mutable_royalty: bool,
-    ): (signer, address) {
+    ): signer {
         let collection_signer = object::generate_signer(constructor_ref);
 
         let mutator_ref = if (mutable_description || mutable_uri) {
@@ -73,7 +76,7 @@ module minter::collection_refs {
             extend_ref: option::some(object::generate_extend_ref(constructor_ref)),
         });
 
-        (collection_signer, object::address_from_constructor_ref(constructor_ref))
+        collection_signer
     }
 
     public entry fun set_collection_description<T: key>(
@@ -116,25 +119,21 @@ module minter::collection_refs {
     }
 
     inline fun borrow<T: key>(collection: Object<T>): &CollectionRefs {
-        borrow_global<CollectionRefs>(collection_address(collection))
-    }
-
-    inline fun authorized_borrow<T: key>(collection: Object<T>, creator: &signer): &CollectionRefs {
-        assert_collection_owner(signer::address_of(creator), collection);
-
-        borrow_global<CollectionRefs>(collection_address(collection))
-    }
-
-    fun collection_address<T: key>(collection: Object<T>): address {
         let collection_address = object::object_address(&collection);
         assert!(
             contains_collection_refs(collection_address),
             error::not_found(ECOLLECTION_REFS_DOES_NOT_EXIST)
         );
-
-        collection_address
+        borrow_global<CollectionRefs>(collection_address)
     }
 
+    inline fun authorized_borrow<T: key>(collection: Object<T>, creator: &signer): &CollectionRefs {
+        assert_collection_owner(signer::address_of(creator), collection);
+        borrow(collection)
+    }
+
+    /// This function checks the whole object hierarchy, checking if the creator
+    /// has indirect or direct ownership of the provided collection object.
     fun assert_collection_owner<T: key>(creator: address, collection: Object<T>) {
         assert!(
             object::owns(collection, creator),

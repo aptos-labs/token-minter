@@ -16,6 +16,7 @@ module minter::token_minter {
     use std::string::String;
     use std::vector;
     use aptos_framework::event;
+    use minter::token_refs;
 
     /// Current version of the token minter
     const VERSION: u64 = 1;
@@ -146,7 +147,7 @@ module minter::token_minter {
             uri,
         );
 
-        let (collection_signer, _) = collection_refs::create_refs(
+        let collection_signer = collection_refs::create_refs(
             collection_constructor_ref,
             mutable_description,
             mutable_uri,
@@ -322,34 +323,7 @@ module minter::token_minter {
         token_constructor_ref: &ConstructorRef,
         recipient_addr: address,
     ): Object<Token> {
-        let mutator_ref = if (
-            collection_properties::mutable_description(collection)
-                || collection_properties::mutable_token_name(collection)
-                || collection_properties::mutable_token_uri(collection)) {
-            option::some(token::generate_mutator_ref(token_constructor_ref))
-        } else {
-            option::none()
-        };
-
-        let burn_ref = if (collection_properties::tokens_burnable_by_creator(collection)) {
-            option::some(token::generate_burn_ref(token_constructor_ref))
-        } else {
-            option::none()
-        };
-
-        let transfer_ref = if (collection_properties::tokens_transferable_by_creator(collection)) {
-            option::some(object::generate_transfer_ref(token_constructor_ref))
-        } else {
-            option::none()
-        };
-
-        move_to(&object::generate_signer(token_constructor_ref), TokenRefs {
-            extend_ref: object::generate_extend_ref(token_constructor_ref),
-            burn_ref,
-            transfer_ref,
-            mutator_ref,
-            property_mutator_ref: property_map::generate_mutator_ref(token_constructor_ref),
-        });
+        token_refs::create_refs(token_constructor_ref, collection);
 
         token_helper::transfer_token(
             token_minter_signer,
@@ -450,48 +424,6 @@ module minter::token_minter {
         } = move_from<TokenMinter>(object::object_address(&token_minter_object));
     }
 
-    // ================================= Collection Mutators ================================= //
-
-    public entry fun set_collection_royalties<T: key>(
-        creator: &signer,
-        collection: Object<T>,
-        royalty_numerator: u64,
-        royalty_denominator: u64,
-        payee_address: address,
-    ) {
-        let royalty = royalty::create(royalty_numerator, royalty_denominator, payee_address);
-        collection_refs::set_collection_royalties(creator, collection, royalty);
-    }
-
-    // ================================= Token Mutators ================================= //
-
-    public entry fun set_token_description<T: key>(
-        creator: &signer,
-        token: Object<Token>,
-        description: String,
-    ) acquires TokenRefs {
-        assert!(
-            collection_properties::mutable_token_description(token::collection_object(token)),
-            error::permission_denied(EFIELD_NOT_MUTABLE),
-        );
-        let token_refs = authorized_borrow_token_refs(creator, token);
-        token::set_description(option::borrow(&token_refs.mutator_ref), description);
-    }
-
-    /// Force transfer a token as the collection creator. Feature only works if
-    /// the `TransferRef` is stored in the `TokenRefs`.
-    public entry fun transfer_as_creator(
-        creator: &signer,
-        token: Object<Token>,
-        to_addr: address,
-    ) acquires TokenRefs {
-        let token_refs = authorized_borrow_token_refs(creator, token);
-        assert!(option::is_some(&token_refs.transfer_ref), ETOKEN_NOT_TRANSFERABLE);
-        let transfer_ref = option::borrow(&token_refs.transfer_ref);
-        let linear_transfer_ref = object::generate_linear_transfer_ref(transfer_ref);
-        object::transfer_with_ref(linear_transfer_ref, to_addr)
-    }
-
     // ================================= View Functions ================================= //
 
     fun token_minter_signer_internal(token_minter: Object<TokenMinter>): signer acquires TokenMinterRefs {
@@ -503,12 +435,6 @@ module minter::token_minter {
         let constructor_ref = object::create_object(creator_address);
         let object_signer = object::generate_signer(&constructor_ref);
         (constructor_ref, object_signer)
-    }
-
-    fun token_address<T: key>(token: &Object<T>): address {
-        let token_address = object::object_address(token);
-        assert!(exists<TokenRefs>(token_address), error::not_found(ETOKEN_DOES_NOT_EXIST));
-        token_address
     }
 
     fun token_minter_address<T: key>(token_minter: &Object<T>): address {
@@ -535,26 +461,6 @@ module minter::token_minter {
 
     inline fun borrow_refs(token_minter: &Object<TokenMinter>): &TokenMinterRefs acquires TokenMinterRefs {
         borrow_global<TokenMinterRefs>(token_minter_address(token_minter))
-    }
-
-    /// Allow borrowing the `TokenRefs` resource if the `creator` owns the
-    /// `token`'s corresponding `Object<TokenMinter>`
-    inline fun authorized_borrow_token_refs(
-        creator: &signer,
-        token: Object<Token>,
-    ): &TokenRefs {
-        // Ownership looks like:
-        // `creator` > `Object<TokenMinter>` > `Object<Collection>`. Therefore,
-        // to check a collection's ownership, we need to check who the
-        // `Object<TokenMinter>`'s owner is.
-        let token_creator = token::creator(token);
-        let token_minter_refs_object =
-            object::address_to_object<TokenMinterRefs>(token_creator);
-        assert!(
-            object::owns(token_minter_refs_object, signer::address_of(creator)),
-            error::permission_denied(ENOT_OBJECT_CREATOR)
-        );
-        borrow_global<TokenRefs>(token_address(&token))
     }
 
     #[view]
