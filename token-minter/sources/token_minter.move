@@ -51,10 +51,6 @@ module minter::token_minter {
         version: u64,
         /// The collection that the token minter will mint from.
         collection: Object<Collection>,
-        /// Whether the token minter is paused.
-        paused: bool,
-        /// Whether only the creator can mint tokens.
-        creator_mint_only: bool,
     }
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
@@ -83,8 +79,6 @@ module minter::token_minter {
     struct InitTokenMinter has drop, store {
         token_minter: Object<TokenMinter>,
         collection: Object<Collection>,
-        paused: bool,
-        creator_mint_only: bool,
     }
 
     public entry fun init_token_minter(
@@ -202,30 +196,61 @@ module minter::token_minter {
     /// @param property_types The types of the properties.
     /// @param property_values The values of the properties.
     /// @param recipient_addrs The addresses to mint the tokens to.
-    public fun mint_tokens_object(
-        minter: &signer,
+    /// 
+    /// outside code example
+    use extensions::payment;
+    struct Payment {
+
+    }
+    struct Lists {
+        stage1: Whitelist,
+        stage2: Whitelist,
+    }
+    whitelist::checkWhitelist(list.stage1)
+    fun define_payment_extension(
+        token_minter: &signer,
         token_minter_object: Object<TokenMinter>,
-        name: String,
-        description: String,
-        uri: String,
         amount: u64,
-        property_keys: vector<vector<String>>,
-        property_types: vector<vector<String>>,
-        property_values: vector<vector<vector<u8>>>,
-        recipient_addrs: vector<address>,
+        destination: address,
+    ) {
+        // token_minter::add_or_update_apt_payment_extension(token_minter, token_minter_object, amount, destination);
+        let payment1 = payment::construct_payment(&token_minter_signer_internal(token_minter), token_minter, amount, destination);
+        let payment2 = payment::construct_payment(&token_minter_signer_internal(token_minter), token_minter, amount, destination);
+        let payment3 = payment::construct_payment(&token_minter_signer_internal(token_minter), token_minter, amount, destination);
+        move_to(&token_minter_signer_internal(token_minter), vec[payment1, 2, 3]);
+
+    }
+    entry fun public_mint(minter: &signer, ...) {
+        let creator = borrow<>();
+        // pseudocode
+        //    let extension1
+        //    let extension2
+        //    ...
+
+        //    .mint
+       let token_minter_object = token_minter::get_token_minter_object(creator);
+       let token = token_minter::mint_tokens_object(token_minter_object...);
+        // let token = token_minter::mint_tokens_object(minter,...);
+        token_minter::mutate_property(creator, token, [],[],[]);
+        let payments = borrow
+        payment.execute();
+       change_transfer_to_false(token);
+    }
+    /// 
+    public fun mint_tokens_object(
+        token_minter_signer: &signer,
+        collection: Object<Collection>,
+        description: String,
+        name: String,
+        uri: String,
+        recipient_addr: address,
     ): vector<Object<Token>> acquires TokenMinter, TokenMinterRefs {
-        token_helper::validate_token_properties(amount, &property_keys, &property_types, &property_values, &recipient_addrs);
-
         let token_minter = borrow_mut(token_minter_object);
-        assert!(!token_minter.paused, error::invalid_state(ETOKEN_MINTER_IS_PAUSED));
-
-        if (token_minter.creator_mint_only) {
-            assert_token_minter_creator(signer::address_of(minter), token_minter_object);
-        };
 
         // Must check ALL extensions first before minting
         check_and_execute_extensions(minter, token_minter_object, amount);
-
+        // in the payment extension (can be apt or coin)
+        emit_event({fees, recipient_addr, amount});
         let tokens = vector[];
         let i = 0;
         let token_minter_signer = &token_minter_signer_internal(token_minter_object);
@@ -256,10 +281,14 @@ module minter::token_minter {
     fun check_and_execute_extensions(minter: &signer, token_minter: Object<TokenMinter>, amount: u64) {
         let minter_address = signer::address_of(minter);
 
-        if (whitelist::is_whitelist_enabled(token_minter)) {
-            whitelist::execute(token_minter, amount, minter_address);
-        };
+        // if (whitelist::is_whitelist_enabled(token_minter)) {
+        //     whitelist::execute(token_minter, amount, minter_address);
+        // };
+        // makign this more useful w/ annotating what's a fee vs mint price
+        // also you can make this into a generic payment extension w/ T: Coin and having array,
+        // and string to annotate if it's fee
         if (apt_payment::is_apt_payment_enabled(token_minter)) {
+            apt_payment::execute(minter, token_minter, fees);
             apt_payment::execute(minter, token_minter, amount);
         };
     }

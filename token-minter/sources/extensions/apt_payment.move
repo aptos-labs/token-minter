@@ -18,6 +18,21 @@ module minter::apt_payment {
     struct AptPayment has key {
         amount: u64,
         destination: address,
+        category: "mint_cost|fees",
+        coin: T,
+    }
+
+    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    struct AllPayment has key {
+        payments: Vec<AptPayment>,
+    }
+
+    struct MintPaymentEvent {
+        amount: u64,
+        destination: address,
+        token: address,
+        category: "mint_cost|fees",
+        coin: T,
     }
 
     public(friend) fun add_or_update_apt_payment<T: key>(
@@ -43,7 +58,7 @@ module minter::apt_payment {
     public(friend) fun execute<T: key>(
         minter: &signer,
         token_minter: Object<T>,
-        amount: u64,
+        payment_instruction: AptPayment
     ) acquires AptPayment {
         let apt_payment = borrow<T>(token_minter);
         let total_cost = apt_payment.amount * amount;

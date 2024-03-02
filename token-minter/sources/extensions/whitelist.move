@@ -28,6 +28,7 @@ module minter::whitelist {
         token_minter: Object<T>,
         whitelisted_addresses: vector<address>,
         max_mints_per_whitelist: vector<u64>,
+        &mut whitelist: Whitelist,
     ) acquires Whitelist {
         let whitelist_length = vector::length(&whitelisted_addresses);
         assert!(
