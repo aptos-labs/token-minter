@@ -158,6 +158,9 @@ module minter::collection {
         }
     }
 
+    // ================================= Collection Mutators ================================= //
+    // ======= Must have the `CollectionProperties` created in the Collection Object ======= //
+
     public entry fun set_collection_description(
         creator: &signer,
         collection: Object<Collection>,
