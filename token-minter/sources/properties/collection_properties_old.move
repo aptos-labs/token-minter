@@ -1,10 +1,15 @@
-module minter::collection_properties_2 {
+module minter::collection_properties_old {
     use std::error;
     use aptos_framework::object::{Self, Object};
-    use aptos_token_objects::collection::Collection;
+
+    friend minter::token_minter;
 
     /// Collection properties does not exist on this object.
     const ECOLLECTION_PROPERTIES_DOES_NOT_EXIST: u64 = 1;
+    /// The provided signer is not the creator
+    const ENOT_CREATOR: u64 = 2;
+    /// The provided signer does not own the collection
+    const ENOT_COLLECTION_OWNER: u64 = 3;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct CollectionProperties has key {
@@ -24,9 +29,11 @@ module minter::collection_properties_2 {
         tokens_burnable_by_creator: bool,
         /// Determines if the creator can transfer tokens
         tokens_transferable_by_creator: bool,
+        /// If the collection is soulbound
+        soulbound: bool,
     }
 
-    public fun create_properties(
+    public(friend) fun create_properties(
         collection_signer: &signer,
         mutable_description: bool,
         mutable_uri: bool,
@@ -36,6 +43,7 @@ module minter::collection_properties_2 {
         mutable_token_uri: bool,
         tokens_burnable_by_creator: bool,
         tokens_transferable_by_creator: bool,
+        soulbound: bool,
     ) {
         move_to(collection_signer, CollectionProperties {
             mutable_description,
@@ -46,65 +54,75 @@ module minter::collection_properties_2 {
             mutable_token_uri,
             tokens_burnable_by_creator,
             tokens_transferable_by_creator,
+            soulbound,
         });
     }
 
     // ================================== View functions ================================== //
 
     #[view]
-    public fun mutable_description(collection: Object<Collection>): bool acquires CollectionProperties {
+    public fun mutable_description<T: key>(collection: Object<T>): bool acquires CollectionProperties {
         borrow(collection).mutable_description
     }
 
     #[view]
-    public fun mutable_uri(collection: Object<Collection>): bool acquires CollectionProperties {
+    public fun mutable_uri<T: key>(collection: Object<T>): bool acquires CollectionProperties {
         borrow(collection).mutable_uri
     }
 
     #[view]
-    public fun mutable_token_description(collection: Object<Collection>): bool acquires CollectionProperties {
+    public fun mutable_token_description<T: key>(collection: Object<T>): bool acquires CollectionProperties {
         borrow(collection).mutable_token_description
     }
 
     #[view]
-    public fun mutable_token_name(collection: Object<Collection>): bool acquires CollectionProperties {
+    public fun mutable_token_name<T: key>(collection: Object<T>): bool acquires CollectionProperties {
         borrow(collection).mutable_token_name
     }
 
     #[view]
-    public fun mutable_token_properties(collection: Object<Collection>): bool acquires CollectionProperties {
+    public fun mutable_token_properties<T: key>(collection: Object<T>): bool acquires CollectionProperties {
         borrow(collection).mutable_token_properties
     }
 
     #[view]
-    public fun mutable_token_uri(collection: Object<Collection>): bool acquires CollectionProperties {
+    public fun mutable_token_uri<T: key>(collection: Object<T>): bool acquires CollectionProperties {
         borrow(collection).mutable_token_uri
     }
 
     #[view]
-    public fun tokens_burnable_by_creator(collection: Object<Collection>): bool acquires CollectionProperties {
+    public fun tokens_burnable_by_creator<T: key>(collection: Object<T>): bool acquires CollectionProperties {
         borrow(collection).tokens_burnable_by_creator
     }
 
     #[view]
-    public fun tokens_transferable_by_creator(collection: Object<Collection>): bool acquires CollectionProperties {
+    public fun tokens_transferable_by_creator<T: key>(collection: Object<T>): bool acquires CollectionProperties {
         borrow(collection).tokens_transferable_by_creator
     }
 
     #[view]
-    public fun is_collection_properties_enabled(collection: Object<Collection>): bool {
-        exists<CollectionProperties>(object::object_address(&collection))
+    public fun soulbound<T: key>(collection: Object<T>): bool acquires CollectionProperties {
+        borrow(collection).soulbound
+    }
+
+    #[view]
+    public fun is_collection_properties_enabled<T: key>(token_minter: Object<T>): bool {
+        exists<CollectionProperties>(object::object_address(&token_minter))
     }
 
     // ================================== Private functions ================================== //
 
-    inline fun borrow(collection: Object<Collection>): &CollectionProperties {
-        let collection_address = object::object_address(&collection);
+    inline fun borrow<T: key>(collection: Object<T>): &CollectionProperties {
+        borrow_global<CollectionProperties>(collection_address(collection))
+    }
+
+    fun collection_address<T: key>(token_minter: Object<T>): address {
+        let collection_address = object::object_address(&token_minter);
         assert!(
-            is_collection_properties_enabled(collection),
+            is_collection_properties_enabled(token_minter),
             error::not_found(ECOLLECTION_PROPERTIES_DOES_NOT_EXIST)
         );
 
-        borrow_global<CollectionProperties>(collection_address)
+        collection_address
     }
 }

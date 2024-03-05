@@ -15,8 +15,8 @@ module minter::token {
     use aptos_token_objects::royalty::{Self};
     use aptos_token_objects::token::{Self, Token};
 
-    use minter::collection_properties_2;
-    use minter::token_helper_2;
+    use minter::collection_properties;
+    use minter::token_helper;
 
     /// Object has no TokenRefs (capabilities) defined.
     const EOBJECT_HAS_NO_REFS: u64 = 1;
@@ -34,6 +34,21 @@ module minter::token {
     const EPROPERTIES_NOT_MUTABLE: u64 = 7;
     /// The token does not support forced transfers
     const ETOKEN_NOT_TRANSFERABLE: u64 = 8;
+
+    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    struct TokenRefs has key {
+        /// Used to generate signer for the token. Can be used for extending the
+        /// token or transferring out objects from the token
+        extend_ref: object::ExtendRef,
+        /// Used to burn.
+        burn_ref: Option<token::BurnRef>,
+        /// Used to control freeze.
+        transfer_ref: Option<object::TransferRef>,
+        /// Used to mutate fields
+        mutator_ref: Option<token::MutatorRef>,
+        /// Used to mutate properties
+        property_mutator_ref: property_map::MutatorRef,
+    }
 
     #[event]
     /// Event emitted when a token is created.
@@ -64,9 +79,9 @@ module minter::token {
             uri
         );
 
-        create_refs(token_constructor_ref, collection);
+        create_refs_and_property_map(token_constructor_ref, collection);
 
-        let token = token_helper_2::transfer_token(
+        let token = token_helper::transfer_token(
             creator,
             recipient_addr,
             soulbound,
@@ -85,38 +100,26 @@ module minter::token {
         token
     }
 
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
-    struct TokenRefs has key {
-        /// Used to generate signer for the token. Can be used for extending the
-        /// token or transferring out objects from the token
-        extend_ref: object::ExtendRef,
-        /// Used to burn.
-        burn_ref: Option<token::BurnRef>,
-        /// Used to control freeze.
-        transfer_ref: Option<object::TransferRef>,
-        /// Used to mutate fields
-        mutator_ref: Option<token::MutatorRef>,
-        /// Used to mutate properties
-        property_mutator_ref: property_map::MutatorRef,
-    }
+    public fun create_refs_and_property_map(token_constructor_ref: &ConstructorRef, collection: Object<Collection>) {
+        /// Initialize the property map
+        property_map::init(token_constructor_ref, property_map::prepare_input(vector[], vector[], vector[]));
 
-    public fun create_refs(token_constructor_ref: &ConstructorRef, collection: Object<Collection>) {
         let mutator_ref = if (
-            collection_properties_2::mutable_token_description(collection)
-                || collection_properties_2::mutable_token_name(collection)
-                || collection_properties_2::mutable_token_uri(collection)) {
+            collection_properties::mutable_token_description(collection)
+                || collection_properties::mutable_token_name(collection)
+                || collection_properties::mutable_token_uri(collection)) {
             option::some(token::generate_mutator_ref(token_constructor_ref))
         } else {
             option::none()
         };
 
-        let burn_ref = if (collection_properties_2::tokens_burnable_by_creator(collection)) {
+        let burn_ref = if (collection_properties::tokens_burnable_by_creator(collection)) {
             option::some(token::generate_burn_ref(token_constructor_ref))
         } else {
             option::none()
         };
 
-        let transfer_ref = if (collection_properties_2::tokens_transferable_by_creator(collection)) {
+        let transfer_ref = if (collection_properties::tokens_transferable_by_creator(collection)) {
             option::some(object::generate_transfer_ref(token_constructor_ref))
         } else {
             option::none()
@@ -280,7 +283,7 @@ module minter::token {
 
     #[view]
     public fun are_properties_mutable(token: Object<Token>): bool {
-        collection_properties_2::mutable_token_properties(token::collection_object(token))
+        collection_properties::mutable_token_properties(token::collection_object(token))
     }
 
     #[view]
@@ -290,21 +293,21 @@ module minter::token {
 
     #[view]
     public fun is_transferable_by_creator(token: Object<Token>): bool {
-        collection_properties_2::tokens_transferable_by_creator(token::collection_object(token))
+        collection_properties::tokens_transferable_by_creator(token::collection_object(token))
     }
 
     #[view]
     public fun is_mutable_description(token: Object<Token>): bool {
-        collection_properties_2::mutable_token_description(token::collection_object(token))
+        collection_properties::mutable_token_description(token::collection_object(token))
     }
 
     #[view]
     public fun is_mutable_name(token: Object<Token>): bool {
-        collection_properties_2::mutable_token_name(token::collection_object(token))
+        collection_properties::mutable_token_name(token::collection_object(token))
     }
 
     #[view]
     public fun is_mutable_uri(token: Object<Token>): bool {
-        collection_properties_2::mutable_token_uri(token::collection_object(token))
+        collection_properties::mutable_token_uri(token::collection_object(token))
     }
 }

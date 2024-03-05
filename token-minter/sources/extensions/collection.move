@@ -9,7 +9,7 @@ module minter::collection {
     use aptos_token_objects::collection::{Self, Collection};
     use aptos_token_objects::royalty::{Self, Royalty};
 
-    use minter::collection_properties_2;
+    use minter::collection_properties;
 
     /// Object has no CollectionRefs (capabilities) defined.
     const EOBJECT_HAS_NO_REFS: u64 = 1;
@@ -77,7 +77,7 @@ module minter::collection {
             mutable_royalty,
         );
 
-        collection_properties_2::create_properties(
+        collection_properties::create_properties(
             &collection_signer,
             mutable_description,
             mutable_uri,
@@ -168,7 +168,7 @@ module minter::collection {
     ) acquires CollectionRefs {
         let refs = authorized_borrow(collection, creator);
         assert!(
-            collection_properties_2::mutable_description(collection),
+            collection_properties::mutable_description(collection),
             error::permission_denied(EFIELD_NOT_MUTABLE),
         );
         collection::set_description(option::borrow(&refs.mutator_ref), description);
@@ -181,7 +181,7 @@ module minter::collection {
     ) acquires CollectionRefs {
         let refs = authorized_borrow(collection, creator);
         assert!(
-            collection_properties_2::mutable_token_uri(collection),
+            collection_properties::mutable_token_uri(collection),
             error::permission_denied(EFIELD_NOT_MUTABLE),
         );
         collection::set_uri(option::borrow(&refs.mutator_ref), uri);

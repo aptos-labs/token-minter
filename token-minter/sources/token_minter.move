@@ -6,9 +6,9 @@ module minter::token_minter {
     use aptos_token_objects::token::{Self, Token};
     use minter::apt_payment;
     use minter::collection_helper;
-    use minter::collection_properties;
+    use minter::collection_properties_old;
     use minter::collection_refs;
-    use minter::token_helper;
+    use minter::token_helper_old;
     use minter::whitelist;
     use std::error;
     use std::option::{Self, Option};
@@ -154,7 +154,7 @@ module minter::token_minter {
             mutable_royalty,
         );
 
-        collection_properties::create_properties(
+        collection_properties_old::create_properties(
             &collection_signer,
             mutable_description,
             mutable_uri,
@@ -215,7 +215,7 @@ module minter::token_minter {
         property_values: vector<vector<vector<u8>>>,
         recipient_addrs: vector<address>,
     ): vector<Object<Token>> acquires TokenMinter, TokenMinterRefs {
-        token_helper::validate_token_properties(amount, &property_keys, &property_types, &property_values, &recipient_addrs);
+        token_helper_old::validate_token_properties(amount, &property_keys, &property_types, &property_values, &recipient_addrs);
 
         let token_minter = borrow_mut(token_minter_object);
         assert!(!token_minter.paused, error::invalid_state(ETOKEN_MINTER_IS_PAUSED));
@@ -325,10 +325,10 @@ module minter::token_minter {
     ): Object<Token> {
         token_refs::create_refs(token_constructor_ref, collection);
 
-        token_helper::transfer_token(
+        token_helper_old::transfer_token(
             token_minter_signer,
             recipient_addr,
-            collection_properties::soulbound(collection),
+            collection_properties_old::soulbound(collection),
             token_constructor_ref,
         )
     }

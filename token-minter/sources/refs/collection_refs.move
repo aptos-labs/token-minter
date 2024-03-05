@@ -11,7 +11,7 @@ module minter::collection_refs {
     use aptos_token_objects::collection;
     use aptos_token_objects::royalty;
 
-    use minter::collection_properties;
+    use minter::collection_properties_old;
 
     friend minter::token_minter;
 
@@ -86,7 +86,7 @@ module minter::collection_refs {
     ) acquires CollectionRefs {
         let refs = authorized_borrow(collection, creator);
         assert!(
-            collection_properties::mutable_description(collection),
+            collection_properties_old::mutable_description(collection),
             error::permission_denied(EFIELD_NOT_MUTABLE),
         );
         collection::set_description(option::borrow(&refs.mutator_ref), description);
@@ -99,7 +99,7 @@ module minter::collection_refs {
     ) acquires CollectionRefs {
         let refs = authorized_borrow(collection, creator);
         assert!(
-            collection_properties::mutable_token_uri(collection),
+            collection_properties_old::mutable_token_uri(collection),
             error::permission_denied(EFIELD_NOT_MUTABLE),
         );
         collection::set_uri(option::borrow(&refs.mutator_ref), uri);
