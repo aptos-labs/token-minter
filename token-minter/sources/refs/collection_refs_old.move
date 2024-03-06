@@ -1,4 +1,4 @@
-module minter::collection_refs {
+module minter::collection_refs_old {
 
     use std::error;
     use std::option;

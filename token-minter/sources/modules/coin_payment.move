@@ -23,6 +23,7 @@ module minter::coin_payment {
     #[event]
     /// Event emitted when a coin payment of type `T` is made.
     struct CoinPaymentEvent<phantom T> has drop, store {
+        from: address,
         amount: u64,
         destination: address,
         category: String,
@@ -36,8 +37,9 @@ module minter::coin_payment {
 
     public fun execute<T>(minter: &signer, coin_payment: &CoinPayment<T>) {
         let amount = amount(coin_payment);
+        let from = signer::address_of(minter);
         assert!(
-            coin::balance<T>(signer::address_of(minter)) >= amount,
+            coin::balance<T>(from) >= amount,
             error::invalid_state(EINSUFFICIENT_BALANCE),
         );
 
@@ -45,6 +47,7 @@ module minter::coin_payment {
         coin::transfer<T>(minter, destination, amount);
 
         event::emit(CoinPaymentEvent<T> {
+            from,
             amount,
             destination,
             category: category(coin_payment),

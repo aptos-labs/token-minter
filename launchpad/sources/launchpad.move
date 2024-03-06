@@ -2,6 +2,7 @@
 /// This uses the extensions provided by the token minter standard.
 module launchpad::launchpad {
     use std::error;
+    use std::option;
     use std::option::Option;
     use std::signer;
     use std::string;
@@ -11,12 +12,18 @@ module launchpad::launchpad {
     use aptos_framework::event;
     use aptos_framework::object::{Self, ExtendRef, Object};
 
+    use aptos_token_objects::collection;
     use aptos_token_objects::collection::Collection;
+    use aptos_token_objects::royalty;
     use aptos_token_objects::royalty::Royalty;
+    use aptos_token_objects::token;
     use aptos_token_objects::token::Token;
     use minter::coin_payment::{Self, CoinPayment};
-    use minter::collection;
-    use minter::token;
+    use minter::collection_properties;
+    use minter::collection_properties::CollectionProperties;
+    use minter::collection_refs;
+    use minter::token_refs;
+    use minter::transfer_token;
 
     /// The caller is not the owner.
     const ENOT_OWNER: u64 = 1;
@@ -31,8 +38,12 @@ module launchpad::launchpad {
 
     /// If no fees specified for minting, 1000 Octa is the default launchpad fee.
     const DEFAULT_LAUNCHPAD_FEE: u64 = 1000;
+
     /// 0.3% of total fees go to the launchpad admin as the launchpad fee.
-    const LAUNCHPAD_FEE_PERCENTAGE: u64 = 30;
+    /// Launchpad fee numerator in basis points.
+    const LAUNCHPAD_FEE_BPS_NUMERATOR: u64 = 30;
+    /// Launchpad fee denominator in basis points.
+    const LAUNCHPAD_FEE_BPS_DENOMINATOR: u64 = 10000;
     const LAUNCHPAD_FEE_CATEGORY: vector<u8> = b"Launchpad Fee";
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
@@ -60,7 +71,7 @@ module launchpad::launchpad {
 
     /// Creators of the launchpad can call this to create a `CoinPayment` and add this to the list of fees.
     /// This can be multiple fees, such as "Mint fee", "Launch fee", etc.
-    public fun add_coin_payment_to_fees<T>(
+    public entry fun add_coin_payment_to_fees<T>(
         creator: &signer,
         launchpad: Object<Launchpad>,
         amount: u64,
@@ -79,9 +90,32 @@ module launchpad::launchpad {
         let coin_payment = coin_payment::create(amount, destination, category);
         vector::push_back(&mut fees.coin_payments, coin_payment);
 
-        // Take launchpad fees - 0.3& of each coin payment.
-        let launchpad_fee = create_launchpad_fee<T>((amount * LAUNCHPAD_FEE_PERCENTAGE) / 10000);
+        // Take launchpad fees - 0.3% of each coin payment amount.
+        let launchpad_fee = create_launchpad_fee<T>(
+            (amount * LAUNCHPAD_FEE_BPS_NUMERATOR) / LAUNCHPAD_FEE_BPS_DENOMINATOR
+        );
         vector::push_back(&mut fees.coin_payments, launchpad_fee);
+    }
+
+    public entry fun remove_coin_payment_from_fees<T>(
+        creator: &signer,
+        launchpad: Object<Launchpad>,
+        category: String,
+    ) acquires Fees {
+        assert_owner(signer::address_of(creator), launchpad);
+
+        let launchpad_addr = object::object_address(&launchpad);
+        assert!(exists<Fees<T>>(launchpad_addr), EFEES_DOES_NOT_EXIST);
+
+        let fees = borrow_global_mut<Fees<T>>(launchpad_addr);
+        let len = vector::length(&fees.coin_payments);
+        for (i in 0..len) {
+            let coin_payment = vector::borrow(&fees.coin_payments, i);
+            if (coin_payment::category(coin_payment) == category) {
+                vector::remove(&mut fees.coin_payments, i);
+                return;
+            }
+        };
     }
 
     /// This function will be called by the minter to mint a new token.
@@ -105,15 +139,28 @@ module launchpad::launchpad {
         assert!(exists<Launchpad>(launchpad_addr), error::invalid_argument(ELAUNCHPAD_DOES_NOT_EXIST));
         let launchpad = borrow_global<Launchpad>(launchpad_addr);
 
-        token::create(
-            &launchpad_signer(launchpad_obj),
-            launchpad.collection,
+        let creator = &launchpad_signer(launchpad_obj);
+        // Call the token module from aptos token objects framework
+        let constructor_ref = &token::create(
+            creator,
+            token::collection_name(launchpad.collection),
             description,
             name,
+            royalty::get(launchpad.collection),
             uri,
-            recipient_addr,
-            launchpad.soulbound,
-        )
+        );
+
+        // Call token refs module
+        token_refs::create_refs_and_properties(constructor_ref, launchpad.collection);
+
+        // Call token transfer module
+        if (launchpad.soulbound) {
+            transfer_token::transfer_soulbound(recipient_addr, constructor_ref);
+        } else {
+            transfer_token::transfer(creator, recipient_addr, constructor_ref);
+        };
+
+        object::object_from_constructor_ref(constructor_ref)
     }
 
     /// Pay the mint and launchpad fees if they exist. If it is a free mint/no fees, take the default launchpad fee.
@@ -144,39 +191,46 @@ module launchpad::launchpad {
         max_supply: Option<u64>, // If value is present, collection configured to have a fixed supply.
         name: String,
         uri: String,
-        mutable_description: bool,
         mutable_royalty: bool,
-        mutable_uri: bool,
-        mutable_token_description: bool,
-        mutable_token_name: bool,
-        mutable_token_properties: bool,
-        mutable_token_uri: bool,
-        tokens_burnable_by_creator: bool,
-        tokens_transferable_by_creator: bool,
+        collection_properties: Option<CollectionProperties>,
         royalty: Option<Royalty>,
         soulbound: bool,
     ): Object<Launchpad> {
         assert!(signer::address_of(launchpad_admin) == @launchpad_admin, error::unauthenticated(ENOT_LAUNCHPAD_ADMIN));
 
         let (_, launchpad_signer) = create_launchpad_refs(creator);
-        let collection = collection::create_collection(
-            &launchpad_signer,
-            description,
-            max_supply,
-            name,
-            uri,
-            mutable_description,
-            mutable_royalty,
-            mutable_uri,
-            mutable_token_description,
-            mutable_token_name,
-            mutable_token_properties,
-            mutable_token_uri,
-            tokens_burnable_by_creator,
-            tokens_transferable_by_creator,
-            royalty,
-        );
+        let constructor_ref = if (option::is_some(&max_supply)) {
+            collection::create_fixed_collection(
+                &launchpad_signer,
+                description,
+                option::extract(&mut max_supply),
+                name,
+                royalty,
+                uri,
+            )
+        } else {
+            collection::create_unlimited_collection(
+                &launchpad_signer,
+                description,
+                name,
+                royalty,
+                uri,
+            )
+        };
 
+        // If the user provides `CollectionProperties`, initialize the collection with them and create refs.
+        if (option::is_some(&collection_properties)) {
+            let properties = option::extract(&mut collection_properties);
+            collection_refs::create_refs(
+                &constructor_ref,
+                collection_properties::mutable_description(&properties),
+                collection_properties::mutable_uri(&properties),
+                mutable_royalty,
+            );
+            collection_properties::init(&constructor_ref, properties);
+        };
+
+        let collection = object::object_from_constructor_ref(&constructor_ref);
         move_to(&launchpad_signer, Launchpad { collection, soulbound });
         event::emit(CreateLaunchpad { collection, soulbound });
 

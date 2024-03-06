@@ -7,7 +7,7 @@ module minter::token_minter {
     use minter::apt_payment;
     use minter::collection_helper;
     use minter::collection_properties_old;
-    use minter::collection_refs;
+    use minter::collection_refs_old;
     use minter::token_helper_old;
     use minter::whitelist;
     use std::error;
@@ -16,7 +16,7 @@ module minter::token_minter {
     use std::string::String;
     use std::vector;
     use aptos_framework::event;
-    use minter::token_refs;
+    use minter::token_refs_old;
 
     /// Current version of the token minter
     const VERSION: u64 = 1;
@@ -147,7 +147,7 @@ module minter::token_minter {
             uri,
         );
 
-        let collection_signer = collection_refs::create_refs(
+        let collection_signer = collection_refs_old::create_refs(
             collection_constructor_ref,
             mutable_description,
             mutable_uri,
@@ -323,7 +323,7 @@ module minter::token_minter {
         token_constructor_ref: &ConstructorRef,
         recipient_addr: address,
     ): Object<Token> {
-        token_refs::create_refs(token_constructor_ref, collection);
+        token_refs_old::create_refs(token_constructor_ref, collection);
 
         token_helper_old::transfer_token(
             token_minter_signer,

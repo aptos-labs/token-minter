@@ -5,15 +5,16 @@ module minter::token_refs {
     use std::option::Option;
     use std::signer;
     use std::string::String;
+    use aptos_framework::event;
     use aptos_framework::object;
     use aptos_framework::object::{ConstructorRef, Object};
 
+    use aptos_token_objects::collection::Collection;
     use aptos_token_objects::property_map;
     use aptos_token_objects::token;
 
-    use minter::collection_properties_old;
-
-    friend minter::token_minter;
+    use minter::collection_properties;
+    use minter::collection_properties::CollectionProperties;
 
     /// Object has no TokenRefs (capabilities) defined.
     const EOBJECT_HAS_NO_REFS: u64 = 1;
@@ -30,7 +31,7 @@ module minter::token_refs {
     /// The property map being mutated is not mutable
     const EPROPERTIES_NOT_MUTABLE: u64 = 7;
     /// The token does not support forced transfers
-    const ETOKEN_NOT_TRANSFERABLE: u64 = 8;
+    const ETOKEN_NOT_TRANSFERABLE_BY_CREATOR: u64 = 8;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct TokenRefs has key {
@@ -47,35 +48,87 @@ module minter::token_refs {
         property_mutator_ref: property_map::MutatorRef,
     }
 
-    public(friend) fun create_refs<T: key>(token_constructor_ref: &ConstructorRef, collection: Object<T>) {
-        let mutator_ref = if (
-            collection_properties_old::mutable_token_description(collection)
-                || collection_properties_old::mutable_token_name(collection)
-                || collection_properties_old::mutable_token_uri(collection)) {
-            option::some(token::generate_mutator_ref(token_constructor_ref))
-        } else {
-            option::none()
+    #[event]
+    /// Event emitted when CollectionRefs are created.
+    struct CreateTokenRefs has drop, store {
+        extend_ref_exists: bool,
+        burn_ref_exists: bool,
+        transfer_ref_exists: bool,
+        mutator_ref_exists: bool,
+        property_mutator_ref_exists: bool,
+    }
+
+    public fun create_refs_and_properties(
+        constructor_ref: &ConstructorRef,
+        collection: Object<Collection>
+    ): Object<TokenRefs> {
+        init_token_properties(constructor_ref);
+
+        let mutator_ref = option::none();
+        let burn_ref = option::none();
+        let transfer_ref = option::none();
+
+        let option_properties = collection_properties::get(collection);
+        if (option::is_some(&option_properties)) {
+            let properties = &option::extract(&mut option_properties);
+            mutator_ref = generate_mutator_ref(constructor_ref, properties);
+            burn_ref = generate_burn_ref(constructor_ref, properties);
+            transfer_ref = generate_transfer_ref(constructor_ref, properties);
         };
 
-        let burn_ref = if (collection_properties_old::tokens_burnable_by_creator(collection)) {
-            option::some(token::generate_burn_ref(token_constructor_ref))
-        } else {
-            option::none()
-        };
+        event::emit(CreateTokenRefs {
+            extend_ref_exists: true,
+            burn_ref_exists: option::is_some(&burn_ref),
+            transfer_ref_exists: option::is_some(&transfer_ref),
+            mutator_ref_exists: option::is_some(&mutator_ref),
+            property_mutator_ref_exists: true,
+        });
 
-        let transfer_ref = if (collection_properties_old::tokens_transferable_by_creator(collection)) {
-            option::some(object::generate_transfer_ref(token_constructor_ref))
-        } else {
-            option::none()
-        };
-
-        move_to(&object::generate_signer(token_constructor_ref), TokenRefs {
-            extend_ref: object::generate_extend_ref(token_constructor_ref),
+        move_to(&object::generate_signer(constructor_ref), TokenRefs {
+            extend_ref: object::generate_extend_ref(constructor_ref),
             burn_ref,
             transfer_ref,
             mutator_ref,
-            property_mutator_ref: property_map::generate_mutator_ref(token_constructor_ref),
+            property_mutator_ref: property_map::generate_mutator_ref(constructor_ref),
         });
+
+        object::object_from_constructor_ref(constructor_ref)
+    }
+
+    fun init_token_properties(constructor_ref: &ConstructorRef) {
+        property_map::init(constructor_ref, property_map::prepare_input(vector[], vector[], vector[]));
+    }
+
+    fun generate_mutator_ref(
+        constructor_ref: &ConstructorRef,
+        properties: &CollectionProperties,
+    ): Option<token::MutatorRef> {
+        if (collection_properties::mutable_token_description(properties)
+            || collection_properties::mutable_token_name(properties)
+            || collection_properties::mutable_token_uri(properties)) {
+            option::some(token::generate_mutator_ref(constructor_ref))
+        } else {
+            option::none()
+        }
+    }
+
+    fun generate_burn_ref(constructor_ref: &ConstructorRef, properties: &CollectionProperties): Option<token::BurnRef> {
+        if (collection_properties::tokens_burnable_by_creator(properties)) {
+            option::some(token::generate_burn_ref(constructor_ref))
+        } else {
+            option::none()
+        }
+    }
+
+    fun generate_transfer_ref(
+        constructor_ref: &ConstructorRef,
+        properties: &CollectionProperties,
+    ): Option<object::TransferRef> {
+        if (collection_properties::tokens_transferable_by_creator(properties)) {
+            option::some(object::generate_transfer_ref(constructor_ref))
+        } else {
+            option::none()
+        }
     }
 
     /// Force transfer a token as the collection creator. Feature only works if
@@ -85,33 +138,29 @@ module minter::token_refs {
         token: Object<T>,
         to_addr: address,
     ) acquires TokenRefs {
-        let token_refs = authorized_borrow(creator, token);
-        assert!(option::is_some(&token_refs.transfer_ref), ETOKEN_NOT_TRANSFERABLE);
+        assert!(is_transferable_by_creator(token), error::permission_denied(EFIELD_NOT_MUTABLE));
 
+        let token_refs = authorized_borrow(creator, token);
         let transfer_ref = option::borrow(&token_refs.transfer_ref);
         let linear_transfer_ref = object::generate_linear_transfer_ref(transfer_ref);
         object::transfer_with_ref(linear_transfer_ref, to_addr)
     }
 
     public entry fun freeze_transfer<T: key>(creator: &signer, token: Object<T>) acquires TokenRefs {
-        let token_refs = authorized_borrow(creator, token);
-        assert!(
-            is_transferable_by_creator(token) && option::is_some(&token_refs.transfer_ref),
-            error::permission_denied(EFIELD_NOT_MUTABLE),
-        );
-        object::disable_ungated_transfer(option::borrow(&token_refs.transfer_ref));
+        assert!(is_transferable_by_creator(token), error::permission_denied(EFIELD_NOT_MUTABLE));
+        object::disable_ungated_transfer(option::borrow(&authorized_borrow(creator, token).transfer_ref));
     }
 
     public entry fun unfreeze_transfer<T: key>(creator: &signer, token: Object<T>) acquires TokenRefs {
-        let token_refs = authorized_borrow(creator, token);
-        assert!(
-            is_transferable_by_creator(token) && option::is_some(&token_refs.transfer_ref),
-            error::permission_denied(EFIELD_NOT_MUTABLE),
-        );
-        object::enable_ungated_transfer(option::borrow(&token_refs.transfer_ref));
+        assert!(is_transferable_by_creator(token), error::permission_denied(EFIELD_NOT_MUTABLE));
+        object::enable_ungated_transfer(option::borrow(&authorized_borrow(creator, token).transfer_ref));
     }
 
-    public entry fun set_description<T: key>(creator: &signer, token: Object<T>, description: String) acquires TokenRefs {
+    public entry fun set_description<T: key>(
+        creator: &signer,
+        token: Object<T>,
+        description: String,
+    ) acquires TokenRefs {
         assert!(is_mutable_description(token), error::permission_denied(EFIELD_NOT_MUTABLE));
         token::set_description(option::borrow(&authorized_borrow(creator, token).mutator_ref), description);
     }
@@ -175,12 +224,9 @@ module minter::token_refs {
 
     /// Burn the `TokenRef` object, making the Token immutable
     public entry fun burn<T: key>(creator: &signer, token: Object<T>) acquires TokenRefs {
-        let token_refs = authorized_borrow(creator, token);
-        assert!(
-            option::is_some(&token_refs.burn_ref),
-            error::permission_denied(ETOKEN_NOT_BURNABLE),
-        );
-        move token_refs;
+        assert_token_collection_owner(signer::address_of(creator), token);
+        assert!(is_burnable(token), error::permission_denied(ETOKEN_NOT_BURNABLE));
+
         let token_refs = move_from<TokenRefs>(object::object_address(&token));
         let TokenRefs {
             extend_ref: _,
@@ -193,13 +239,8 @@ module minter::token_refs {
         token::burn(option::extract(&mut burn_ref));
     }
 
-    /// Allow borrowing the `TokenRefs` resource if the `creator` owns the
-    /// `token`'s corresponding `Object<TokenMinter>`
+    /// Allow borrowing the `TokenRefs` resource if the `creator` owns the `token`.
     inline fun authorized_borrow<T: key>(creator: &signer, token: Object<T>): &TokenRefs {
-        // Ownership looks like:
-        // `creator` > `Object<TokenMinter>` > `Object<Collection>`.
-        // Therefore, to check a collection's ownership, we need to check who the
-        // `Object<TokenMinter>`'s owner is.
         assert_token_collection_owner(signer::address_of(creator), token);
         borrow(token)
     }
@@ -217,14 +258,14 @@ module minter::token_refs {
     /// has indirect or direct ownership of the token's collection object.
     fun assert_token_collection_owner<T: key>(creator: address, token: Object<T>) {
         assert!(
-            object::owns(token::collection_object(token), creator),
+            object::owner(token::collection_object(token)) == creator,
             error::permission_denied(ENOT_TOKEN_COLLECTION_OWNER),
         );
     }
 
     #[view]
     /// Can only be called if the `creator` is the owner of the collection the `token` belongs to.
-    public fun token_object_signer<T: key>(creator: &signer, token: Object<T>): signer acquires TokenRefs {
+    public fun token_signer<T: key>(creator: &signer, token: Object<T>): signer acquires TokenRefs {
         object::generate_signer_for_extending(&authorized_borrow(creator, token).extend_ref)
     }
 
@@ -235,31 +276,66 @@ module minter::token_refs {
 
     #[view]
     public fun are_properties_mutable<T: key>(token: Object<T>): bool {
-        collection_properties_old::mutable_token_properties(token::collection_object(token))
+        let option_properties = collection_properties::get(token::collection_object(token));
+        if (option::is_some(&option_properties)) {
+            collection_properties::mutable_token_properties(&option::extract(&mut option_properties))
+        } else {
+            false
+        }
     }
 
     #[view]
     public fun is_burnable<T: key>(token: Object<T>): bool acquires TokenRefs {
-        option::is_some(&borrow(token).burn_ref)
+        let option_properties = collection_properties::get(token::collection_object(token));
+        if (option::is_some(&option_properties)) {
+            collection_properties::tokens_burnable_by_creator(&option::extract(&mut option_properties))
+                && option::is_some(&borrow(token).burn_ref)
+        } else {
+            false
+        }
     }
 
     #[view]
-    public fun is_transferable_by_creator<T: key>(token: Object<T>): bool {
-        collection_properties_old::tokens_transferable_by_creator(token::collection_object(token))
+    public fun is_transferable_by_creator<T: key>(token: Object<T>): bool acquires TokenRefs {
+        let option_properties = collection_properties::get(token::collection_object(token));
+        if (option::is_some(&option_properties)) {
+            collection_properties::tokens_transferable_by_creator(&option::extract(&mut option_properties))
+                && option::is_some(&borrow(token).transfer_ref)
+        } else {
+            false
+        }
     }
 
     #[view]
-    public fun is_mutable_description<T: key>(token: Object<T>): bool {
-        collection_properties_old::mutable_token_description(token::collection_object(token))
+    public fun is_mutable_description<T: key>(token: Object<T>): bool acquires TokenRefs {
+        let option_properties = collection_properties::get(token::collection_object(token));
+        if (option::is_some(&option_properties)) {
+            collection_properties::mutable_token_description(&option::extract(&mut option_properties))
+                && option::is_some(&borrow(token).mutator_ref)
+        } else {
+            false
+        }
     }
 
     #[view]
-    public fun is_mutable_name<T: key>(token: Object<T>): bool {
-        collection_properties_old::mutable_token_name(token::collection_object(token))
+    public fun is_mutable_name<T: key>(token: Object<T>): bool acquires TokenRefs {
+        let option_properties = collection_properties::get(token::collection_object(token));
+        if (option::is_some(&option_properties)) {
+            collection_properties::mutable_token_name(&option::extract(&mut option_properties))
+                && option::is_some(&borrow(token).mutator_ref)
+        } else {
+            false
+        }
     }
 
     #[view]
-    public fun is_mutable_uri<T: key>(token: Object<T>): bool {
-        collection_properties_old::mutable_token_uri(token::collection_object(token))
+    public fun is_mutable_uri<T: key>(token: Object<T>): bool acquires TokenRefs {
+        let option_properties = collection_properties::get(token::collection_object(token));
+        if (option::is_some(&option_properties)) {
+            collection_properties::mutable_token_uri(&option::extract(&mut option_properties))
+                && option::is_some(&borrow(token).mutator_ref)
+        } else {
+            false
+        }
     }
 }
