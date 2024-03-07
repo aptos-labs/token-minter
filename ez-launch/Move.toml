@@ -1,0 +1,31 @@
+[package]
+name = "EZLaunch"
+version = "1.0.0"
+authors = []
+
+[addresses]
+ez_launch = "_"
+
+[dev-addresses]
+ez_launch = "0x123"
+minter = "0x456"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "main"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dependencies.AptosTokenObjects]
+git = 'https://github.com/aptos-labs/aptos-core.git'
+rev = 'main'
+subdir = 'aptos-move/framework/aptos-token-objects'
+
+[dependencies.AptosToken]
+git = 'https://github.com/aptos-labs/aptos-core.git'
+rev = 'main'
+subdir = 'aptos-move/framework/aptos-token'
+
+[dependencies.TokenMinter]
+local = "../token-minter"
+
+[dev-dependencies]
