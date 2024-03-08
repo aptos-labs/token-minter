@@ -15,7 +15,7 @@ module example_composable::main {
     #[test_only]
     use std::vector;
     #[test_only]
-    use minter::token_refs;
+    use minter::token_refs_old;
 
     #[test(creator = @0x123, user = @0x456)]
     fun main(creator: &signer, user: &signer) {
@@ -96,7 +96,7 @@ module example_composable::main {
         assert!(object::owner(powerup_token_obj) == sword_token_addr, 1);
 
         // Transfer powerup back to the user as the collection creator
-        token_refs::transfer_as_creator(
+        token_refs_old::transfer_as_creator(
             creator,
             powerup_token_obj,
             user_addr,

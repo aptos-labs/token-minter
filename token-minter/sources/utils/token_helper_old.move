@@ -1,11 +1,35 @@
-module minter::token_helper {
+module minter::token_helper_old {
 
+    use std::error;
+    use std::string::String;
+    use std::vector;
     use aptos_framework::object;
     use aptos_framework::object::{ConstructorRef, Object};
 
     use aptos_token_objects::token::Token;
 
-    public fun transfer_token(
+    friend minter::token_minter;
+
+    /// The property keys, types, and values for minting do not match
+    const EMINT_PROPERTIES_ARGUMENT_MISMATCH: u64 = 1;
+
+    public(friend) fun validate_token_properties(
+        amount: u64,
+        property_keys: &vector<vector<String>>,
+        property_types: &vector<vector<String>>,
+        property_values: &vector<vector<vector<u8>>>,
+        recipient_addrs: &vector<address>,
+    ) {
+        assert!(
+            vector::length(property_keys) == amount
+                && vector::length(property_types) == amount
+                && vector::length(property_values) == amount
+                && vector::length(recipient_addrs) == amount,
+            error::invalid_argument(EMINT_PROPERTIES_ARGUMENT_MISMATCH),
+        );
+    }
+
+    public(friend) fun transfer_token(
         owner: &signer,
         to: address,
         soulbound: bool,

@@ -16,9 +16,9 @@ module example_ownership::part1 {
     #[test_only]
     use std::vector;
     #[test_only]
-    use minter::collection_refs::{set_collection_description};
+    use minter::collection_refs_old::{set_collection_description};
     #[test_only]
-    use minter::token_refs;
+    use minter::token_refs_old;
 
     #[test_only]
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
@@ -75,7 +75,7 @@ module example_ownership::part1 {
         let minted_token = *vector::borrow(&minted_tokens_object, 0);
         assert!(token_minter::tokens_minted(token_minter_obj) == 1, 0);
 
-        token_refs::set_description(creator, minted_token, utf8(b"updated test token description"));
+        token_refs_old::set_description(creator, minted_token, utf8(b"updated test token description"));
         assert!(token::description(minted_token) == utf8(b"updated test token description"), 0);
 
         // lets say i wanna add additional struct to tokenminter, need to get tokenminter object address first

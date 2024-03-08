@@ -1,17 +1,16 @@
 [package]
-name = "ExampleComposable"
+name = "Launchpad"
 version = "1.0.0"
 authors = []
 
 [addresses]
-example_composable = "_"
+launchpad = "_"
+launchpad_admin = "_"
 
 [dev-addresses]
-example_composable = "0x12345"
-minter = "0x1c3e5574728c3d0d544f5679229fac153c5f7d78b323751b41860c5ffbb21cfd"
-
-[dependencies.TokenMinter]
-local = "../token-minter"
+launchpad = "0x123"
+minter = "0xb04204ddbcf130b6d1accfdd2e9593275cb6d4777d70ebd41a4799c007c55a2b"
+launchpad_admin = "0x678"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
@@ -27,5 +26,8 @@ subdir = 'aptos-move/framework/aptos-token-objects'
 git = 'https://github.com/aptos-labs/aptos-core.git'
 rev = 'mainnet'
 subdir = 'aptos-move/framework/aptos-token'
+
+[dependencies.TokenMinter]
+local = "../token-minter"
 
 [dev-dependencies]
