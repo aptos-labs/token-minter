@@ -1,18 +1,16 @@
 module minter::collection_refs {
 
     use std::error;
-    use std::option;
-    use std::option::Option;
+    use std::option::{Self, Option};
     use std::signer;
     use std::string::String;
     use aptos_framework::event;
-    use aptos_framework::object;
-    use aptos_framework::object::{ConstructorRef, Object};
+    use aptos_framework::object::{Self, ConstructorRef, Object};
 
     use aptos_token_objects::collection;
     use aptos_token_objects::royalty;
 
-    use minter::collection_properties_old;
+    use minter::collection_properties;
 
     /// Object has no CollectionRefs (capabilities) defined.
     const EOBJECT_HAS_NO_REFS: u64 = 1;
@@ -82,12 +80,8 @@ module minter::collection_refs {
         collection: Object<T>,
         description: String,
     ) acquires CollectionRefs {
-        let refs = authorized_borrow(collection, creator);
-        assert!(
-            collection_properties_old::mutable_description(collection),
-            error::permission_denied(EFIELD_NOT_MUTABLE),
-        );
-        collection::set_description(option::borrow(&refs.mutator_ref), description);
+        assert!(is_mutable_description(collection), error::permission_denied(EFIELD_NOT_MUTABLE));
+        collection::set_description(option::borrow(&authorized_borrow(collection, creator).mutator_ref), description);
     }
 
     public entry fun set_collection_uri<T: key>(
@@ -95,12 +89,8 @@ module minter::collection_refs {
         collection: Object<T>,
         uri: String,
     ) acquires CollectionRefs {
-        let refs = authorized_borrow(collection, creator);
-        assert!(
-            collection_properties_old::mutable_token_uri(collection),
-            error::permission_denied(EFIELD_NOT_MUTABLE),
-        );
-        collection::set_uri(option::borrow(&refs.mutator_ref), uri);
+        assert!(is_mutable_uri(collection), error::permission_denied(EFIELD_NOT_MUTABLE));
+        collection::set_uri(option::borrow(&authorized_borrow(collection, creator).mutator_ref), uri);
     }
 
     public(friend) fun set_collection_royalties<T: key>(
@@ -108,12 +98,8 @@ module minter::collection_refs {
         collection: Object<T>,
         royalty: royalty::Royalty,
     ) acquires CollectionRefs {
-        let refs = authorized_borrow(collection, creator);
-        assert!(
-            option::is_some(&refs.royalty_mutator_ref),
-            error::permission_denied(EFIELD_NOT_MUTABLE),
-        );
-        royalty::update(option::borrow(&refs.royalty_mutator_ref), royalty);
+        assert!(is_mutable_royalty(collection), error::permission_denied(EFIELD_NOT_MUTABLE));
+        royalty::update(option::borrow(&authorized_borrow(collection, creator).royalty_mutator_ref), royalty);
     }
 
     inline fun borrow<T: key>(collection: Object<T>): &CollectionRefs {
@@ -160,7 +146,35 @@ module minter::collection_refs {
     }
 
     #[view]
-    public fun is_mutable_collection_royalty<T: key>(collection: Object<T>): bool acquires CollectionRefs {
-        option::is_some(&borrow(collection).royalty_mutator_ref)
+    public fun is_mutable_description<T: key>(obj: Object<T>): bool acquires CollectionRefs {
+        let collection_properties = &collection_properties::get(obj);
+        if (option::is_some(collection_properties)) {
+            collection_properties::mutable_description(option::borrow(collection_properties))
+                && option::is_some(&borrow(obj).mutator_ref)
+        } else {
+            false
+        }
+    }
+
+    #[view]
+    public fun is_mutable_uri<T: key>(obj: Object<T>): bool acquires CollectionRefs {
+        let collection_properties = &collection_properties::get(obj);
+        if (option::is_some(collection_properties)) {
+            collection_properties::mutable_uri(option::borrow(collection_properties))
+                && option::is_some(&borrow(obj).mutator_ref)
+        } else {
+            false
+        }
+    }
+
+    #[view]
+    public fun is_mutable_royalty<T: key>(obj: Object<T>): bool acquires CollectionRefs {
+        let collection_properties = &collection_properties::get(obj);
+        if (option::is_some(collection_properties)) {
+            collection_properties::mutable_royalty(option::borrow(collection_properties))
+                && option::is_some(&borrow(obj).royalty_mutator_ref)
+        } else {
+            false
+        }
     }
 }

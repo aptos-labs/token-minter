@@ -21,6 +21,8 @@ module minter::collection_properties {
         mutable_token_properties: bool,
         /// Determines if the creator can mutate token uris
         mutable_token_uri: bool,
+        /// Determines if the creator can change royalties
+        mutable_royalty: bool,
         /// Determines if the creator can burn tokens
         tokens_burnable_by_creator: bool,
         /// Determines if the creator can transfer tokens
@@ -36,6 +38,7 @@ module minter::collection_properties {
         mutable_token_name: bool,
         mutable_token_properties: bool,
         mutable_token_uri: bool,
+        mutable_royalty: bool,
         tokens_burnable_by_creator: bool,
         tokens_transferable_by_creator: bool,
     }
@@ -47,6 +50,7 @@ module minter::collection_properties {
         mutable_token_name: bool,
         mutable_token_properties: bool,
         mutable_token_uri: bool,
+        mutable_royalty: bool,
         tokens_burnable_by_creator: bool,
         tokens_transferable_by_creator: bool,
     ): CollectionProperties {
@@ -57,6 +61,7 @@ module minter::collection_properties {
             mutable_token_name,
             mutable_token_properties,
             mutable_token_uri,
+            mutable_royalty,
             tokens_burnable_by_creator,
             tokens_transferable_by_creator,
         }
@@ -73,6 +78,7 @@ module minter::collection_properties {
             mutable_token_name: properties.mutable_token_name,
             mutable_token_properties: properties.mutable_token_properties,
             mutable_token_uri: properties.mutable_token_uri,
+            mutable_royalty: properties.mutable_royalty,
             tokens_burnable_by_creator: properties.tokens_burnable_by_creator,
             tokens_transferable_by_creator: properties.tokens_transferable_by_creator,
         });
@@ -111,6 +117,10 @@ module minter::collection_properties {
 
     public fun mutable_token_uri(properties: &CollectionProperties): bool {
         properties.mutable_token_uri
+    }
+
+    public fun mutable_royalty(properties: &CollectionProperties): bool {
+        properties.mutable_royalty
     }
 
     public fun tokens_burnable_by_creator(properties: &CollectionProperties): bool {
