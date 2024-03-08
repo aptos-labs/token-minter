@@ -22,13 +22,19 @@ module example_permit::main {
         recipient_addr: address,
     }
 
+    /// Utility to update the public key. NOTE: This is unauthenticated and should only be used for testing.
+    public entry fun set_public_key(authority_public_key: vector<u8>) acquires AppConfig {
+        let app_config = borrow_global_mut<AppConfig>(@example_permit);
+        app_config.authority_public_key = ed25519:: new_unvalidated_public_key_from_bytes(authority_public_key);
+    }
+
     public entry fun init(deployer: &signer, authority_public_key: vector<u8>) {
         let constructor_ref = &object::create_object(address_of(deployer));
         let token_minter_obj = token_minter::init_token_minter_object(
             &object::generate_signer(constructor_ref),
-            utf8(b"example permit"),
+            utf8(b"Permit Collection"),
             option::none(),
-            utf8(b"example permit"),
+            utf8(b"Collection for permit mints"),
             utf8(b"https://example.com/example_permit"),
             false,
             false,
