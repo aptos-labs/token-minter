@@ -109,12 +109,14 @@ module launchpad::launchpad {
 
         let fees = borrow_global_mut<Fees<T>>(launchpad_addr);
         let len = vector::length(&fees.coin_payments);
-        for (i in 0..len) {
+        let i = 0;
+        while (i < len) {
             let coin_payment = vector::borrow(&fees.coin_payments, i);
             if (coin_payment::category(coin_payment) == category) {
                 vector::remove(&mut fees.coin_payments, i);
-                return;
-            }
+                return
+            };
+            i = i + 1;
         };
     }
 
@@ -143,7 +145,7 @@ module launchpad::launchpad {
         // Call the token module from aptos token objects framework
         let constructor_ref = &token::create(
             creator,
-            token::collection_name(launchpad.collection),
+            collection::name(launchpad.collection),
             description,
             name,
             royalty::get(launchpad.collection),
@@ -191,7 +193,6 @@ module launchpad::launchpad {
         max_supply: Option<u64>, // If value is present, collection configured to have a fixed supply.
         name: String,
         uri: String,
-        mutable_royalty: bool,
         collection_properties: Option<CollectionProperties>,
         royalty: Option<Royalty>,
         soulbound: bool,
@@ -225,7 +226,7 @@ module launchpad::launchpad {
                 &constructor_ref,
                 collection_properties::mutable_description(&properties),
                 collection_properties::mutable_uri(&properties),
-                mutable_royalty,
+                collection_properties::mutable_royalty(&properties),
             );
             collection_properties::init(&constructor_ref, properties);
         };
