@@ -1,4 +1,4 @@
-module minter::token_refs {
+module minter::token_components {
 
     use std::error;
     use std::option;
@@ -13,8 +13,8 @@ module minter::token_refs {
     use aptos_token_objects::property_map;
     use aptos_token_objects::token;
 
-    use minter::collection_properties;
-    use minter::collection_properties::CollectionProperties;
+    use minter::collection_components;
+    use minter::collection_components::CollectionProperties;
 
     /// Object has no TokenRefs (capabilities) defined.
     const EOBJECT_HAS_NO_REFS: u64 = 1;
@@ -60,7 +60,7 @@ module minter::token_refs {
 
     public fun create_refs_and_properties(
         constructor_ref: &ConstructorRef,
-        collection: Object<Collection>
+        collection: Object<Collection>,
     ): Object<TokenRefs> {
         init_token_properties(constructor_ref);
 
@@ -68,7 +68,7 @@ module minter::token_refs {
         let burn_ref = option::none();
         let transfer_ref = option::none();
 
-        let option_properties = collection_properties::get(collection);
+        let option_properties = collection_components::collection_properties(collection);
         if (option::is_some(&option_properties)) {
             let properties = &option::extract(&mut option_properties);
             mutator_ref = generate_mutator_ref(constructor_ref, properties);
@@ -103,9 +103,9 @@ module minter::token_refs {
         constructor_ref: &ConstructorRef,
         properties: &CollectionProperties,
     ): Option<token::MutatorRef> {
-        if (collection_properties::mutable_token_description(properties)
-            || collection_properties::mutable_token_name(properties)
-            || collection_properties::mutable_token_uri(properties)) {
+        if (collection_components::mutable_token_description(properties)
+            || collection_components::mutable_token_name(properties)
+            || collection_components::mutable_token_uri(properties)) {
             option::some(token::generate_mutator_ref(constructor_ref))
         } else {
             option::none()
@@ -113,7 +113,7 @@ module minter::token_refs {
     }
 
     fun generate_burn_ref(constructor_ref: &ConstructorRef, properties: &CollectionProperties): Option<token::BurnRef> {
-        if (collection_properties::tokens_burnable_by_creator(properties)) {
+        if (collection_components::tokens_burnable_by_creator(properties)) {
             option::some(token::generate_burn_ref(constructor_ref))
         } else {
             option::none()
@@ -124,7 +124,7 @@ module minter::token_refs {
         constructor_ref: &ConstructorRef,
         properties: &CollectionProperties,
     ): Option<object::TransferRef> {
-        if (collection_properties::tokens_transferable_by_creator(properties)) {
+        if (collection_components::tokens_transferable_by_creator(properties)) {
             option::some(object::generate_transfer_ref(constructor_ref))
         } else {
             option::none()
@@ -276,9 +276,9 @@ module minter::token_refs {
 
     #[view]
     public fun are_properties_mutable<T: key>(token: Object<T>): bool {
-        let collection_properties = &collection_properties::get(token::collection_object(token));
+        let collection_properties = &collection_components::collection_properties(token::collection_object(token));
         if (option::is_some(collection_properties)) {
-            collection_properties::mutable_token_properties(option::borrow(collection_properties))
+            collection_components::mutable_token_properties(option::borrow(collection_properties))
         } else {
             false
         }
@@ -286,9 +286,9 @@ module minter::token_refs {
 
     #[view]
     public fun is_burnable<T: key>(token: Object<T>): bool acquires TokenRefs {
-        let collection_properties = &collection_properties::get(token::collection_object(token));
+        let collection_properties = &collection_components::collection_properties(token::collection_object(token));
         if (option::is_some(collection_properties)) {
-            collection_properties::tokens_burnable_by_creator(option::borrow(collection_properties))
+            collection_components::tokens_burnable_by_creator(option::borrow(collection_properties))
                 && option::is_some(&borrow(token).burn_ref)
         } else {
             false
@@ -297,9 +297,9 @@ module minter::token_refs {
 
     #[view]
     public fun is_transferable_by_creator<T: key>(token: Object<T>): bool acquires TokenRefs {
-        let collection_properties = &collection_properties::get(token::collection_object(token));
+        let collection_properties = &collection_components::collection_properties(token::collection_object(token));
         if (option::is_some(collection_properties)) {
-            collection_properties::tokens_transferable_by_creator(option::borrow(collection_properties))
+            collection_components::tokens_transferable_by_creator(option::borrow(collection_properties))
                 && option::is_some(&borrow(token).transfer_ref)
         } else {
             false
@@ -308,9 +308,9 @@ module minter::token_refs {
 
     #[view]
     public fun is_mutable_description<T: key>(token: Object<T>): bool acquires TokenRefs {
-        let collection_properties = &collection_properties::get(token::collection_object(token));
+        let collection_properties = &collection_components::collection_properties(token::collection_object(token));
         if (option::is_some(collection_properties)) {
-            collection_properties::mutable_token_description(option::borrow(collection_properties))
+            collection_components::mutable_token_description(option::borrow(collection_properties))
                 && option::is_some(&borrow(token).mutator_ref)
         } else {
             false
@@ -319,9 +319,9 @@ module minter::token_refs {
 
     #[view]
     public fun is_mutable_name<T: key>(token: Object<T>): bool acquires TokenRefs {
-        let collection_properties = &collection_properties::get(token::collection_object(token));
+        let collection_properties = &collection_components::collection_properties(token::collection_object(token));
         if (option::is_some(collection_properties)) {
-            collection_properties::mutable_token_name(option::borrow(collection_properties))
+            collection_components::mutable_token_name(option::borrow(collection_properties))
                 && option::is_some(&borrow(token).mutator_ref)
         } else {
             false
@@ -330,9 +330,9 @@ module minter::token_refs {
 
     #[view]
     public fun is_mutable_uri<T: key>(token: Object<T>): bool acquires TokenRefs {
-        let collection_properties = &collection_properties::get(token::collection_object(token));
+        let collection_properties = &collection_components::collection_properties(token::collection_object(token));
         if (option::is_some(collection_properties)) {
-            collection_properties::mutable_token_uri(option::borrow(collection_properties))
+            collection_components::mutable_token_uri(option::borrow(collection_properties))
                 && option::is_some(&borrow(token).mutator_ref)
         } else {
             false

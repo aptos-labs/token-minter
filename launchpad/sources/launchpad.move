@@ -19,10 +19,9 @@ module launchpad::launchpad {
     use aptos_token_objects::token;
     use aptos_token_objects::token::Token;
     use minter::coin_payment::{Self, CoinPayment};
-    use minter::collection_properties;
-    use minter::collection_properties::CollectionProperties;
-    use minter::collection_refs;
-    use minter::token_refs;
+    use minter::collection_components;
+    use minter::collection_components::CollectionProperties;
+    use minter::token_components;
     use minter::transfer_token;
 
     /// The caller is not the owner.
@@ -153,7 +152,7 @@ module launchpad::launchpad {
         );
 
         // Call token refs module
-        token_refs::create_refs_and_properties(constructor_ref, launchpad.collection);
+        token_components::create_refs_and_properties(constructor_ref, launchpad.collection);
 
         // Call token transfer module
         if (launchpad.soulbound) {
@@ -222,13 +221,13 @@ module launchpad::launchpad {
         // If the user provides `CollectionProperties`, initialize the collection with them and create refs.
         if (option::is_some(&collection_properties)) {
             let properties = option::extract(&mut collection_properties);
-            collection_refs::create_refs(
+            collection_components::create_refs(
                 &constructor_ref,
-                collection_properties::mutable_description(&properties),
-                collection_properties::mutable_uri(&properties),
-                collection_properties::mutable_royalty(&properties),
+                collection_components::mutable_description(&properties),
+                collection_components::mutable_uri(&properties),
+                collection_components::mutable_royalty(&properties),
             );
-            collection_properties::init(&constructor_ref, properties);
+            collection_components::init_collection_properties(&constructor_ref, properties);
         };
 
         let collection = object::object_from_constructor_ref(&constructor_ref);

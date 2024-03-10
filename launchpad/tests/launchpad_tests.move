@@ -16,7 +16,7 @@ module minter::launchpad_tests {
     #[test_only]
     use minter::coin_utils::setup_user_and_creator_coin_balances;
     #[test_only]
-    use minter::collection_properties;
+    use minter::collection_components;
 
     #[test_only]
     fun initialize_balances(
@@ -62,7 +62,7 @@ module minter::launchpad_tests {
         // they are approving that the creator is allowed to create the collection on it's platform.
         //
         // The creator owns the Launchpad created, the launchpad owns the collection.
-        let collection_properties = collection_properties::create(
+        let collection_properties = collection_components::create_properties(
             true,  // mutable_description
             true, // mutable_uri
             true, // mutable_token_description

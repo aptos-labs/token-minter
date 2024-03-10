@@ -1,24 +1,24 @@
 module example_ownership::part1 {
     #[test_only]
-    use aptos_framework::object;
+    use std::option;
+    #[test_only]
+    use std::string::utf8;
+    #[test_only]
+        use aptos_framework::object;
     #[test_only]
     use aptos_token_objects::collection;
     #[test_only]
+    use aptos_token_objects::collection::Collection;
+    #[test_only]
+    use aptos_token_objects::royalty;
+    #[test_only]
     use aptos_token_objects::token;
     #[test_only]
-    use minter::token_minter;
+    use aptos_token_objects::token::Token;
     #[test_only]
-    use std::option;
+    use minter::collection_components;
     #[test_only]
-    use std::string::{utf8};
-    #[test_only]
-    use std::signer::{address_of};
-    #[test_only]
-    use std::vector;
-    #[test_only]
-    use minter::collection_refs_old::{set_collection_description};
-    #[test_only]
-    use minter::token_refs_old;
+    use minter::token_components;
 
     #[test_only]
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
@@ -26,67 +26,70 @@ module example_ownership::part1 {
         object_addr: address,
     }
 
-    #[test(creator = @0x123, minter = @0x456)]
-    fun part1(creator: &signer, minter: &signer) {
-        let minter_addr = address_of(minter);
+    #[test_only]
+    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    struct TokenDetails has key {
+        object_addr: address,
+    }
 
-        let token_minter_obj = token_minter::init_token_minter_object(
+    #[test(creator = @0x123, _minter = @0x456)]
+    fun part1(creator: &signer, _minter: &signer) {
+        // First create the collection via the aptos-token-objects framework
+        let collection_construtor_ref = &collection::create_unlimited_collection(
             creator,
             utf8(b"test collection description"),
-            option::none(),
             utf8(b"test collection name"),
+            option::none(),
             utf8(b"https://www.google.com"),
+        );
+
+        // Create and initialize collection properties
+        let collection_properties = collection_components::create_properties(
             true, // mutable_description
-            true, // mutable_royalty
             true, // mutable_uri
             true, // mutable_token_description
             true, // mutable_token_name
             true, // mutable_token_properties
             true, // mutable_token_uri
+            true, // mutable_royalty
             true, // tokens_burnable_by_creator
-            true, // tokens_freezable_by_creator
-            option::none(), // royalty
-            false, // creator_mint_only
-            false, // soulbound
+            true, // tokens_transferable_by_creator
         );
+        collection_components::create_refs(
+            collection_construtor_ref,
+            collection_components::mutable_description(&collection_properties),
+            collection_components::mutable_uri(&collection_properties),
+            collection_components::mutable_royalty(&collection_properties),
+        );
+        collection_components::init_collection_properties(collection_construtor_ref, collection_properties);
+        let collection = object::object_from_constructor_ref<Collection>(collection_construtor_ref);
 
-        let collection = token_minter::collection(token_minter_obj);
-        set_collection_description(creator, collection, utf8(b"updated test collection description"));
+        collection_components::set_collection_description(creator, collection, utf8(b"updated test collection description"));
         assert!(collection::description(collection) == utf8(b"updated test collection description"), 0);
 
         // lets say now i don't have token minter object handy, lets see how easy to retrieve it
         // it will require off chain passing in the object address and then we generate the object from address for mutation.
-
-        token_minter::set_version(creator, token_minter_obj, 1);
-        assert!(token_minter::version(token_minter_obj) == 1, 0);
-
-        let minted_tokens_object = token_minter::mint_tokens_object(
-            minter,
-            token_minter_obj,
-            utf8(b"test token"),
+        let token_constructor_ref = &token::create(
+            creator,
+            collection::name(collection),
             utf8(b"test token description"),
+            utf8(b"test token"),
+            royalty::get(collection),
             utf8(b"https://www.google.com"),
-            1,
-            vector[vector[]],
-            vector[vector[]],
-            vector[vector[]],
-            vector[minter_addr],
         );
-        let minted_token = *vector::borrow(&minted_tokens_object, 0);
-        assert!(token_minter::tokens_minted(token_minter_obj) == 1, 0);
+        token_components::create_refs_and_properties(token_constructor_ref, collection);
+        let minted_token = object::object_from_constructor_ref<Token>(token_constructor_ref);
 
-        token_refs_old::set_description(creator, minted_token, utf8(b"updated test token description"));
+        token_components::set_description(creator, minted_token, utf8(b"updated test token description"));
         assert!(token::description(minted_token) == utf8(b"updated test token description"), 0);
 
-        // lets say i wanna add additional struct to tokenminter, need to get tokenminter object address first
-        let token_minter_object_address = object::object_address<token_minter::TokenMinter>(&token_minter_obj);
-        let token_minter_signer = token_minter::token_minter_signer(creator, token_minter_obj);
-        move_to(&token_minter_signer, TokenMinterDetails {
-            object_addr: token_minter_object_address
-        });
+        // lets say i wanna add additional struct to token, need to get token signer.
+        let token_signer = token_components::token_signer(creator, minted_token);
+        let token_addr = object::object_address(&minted_token);
+        move_to(&token_signer, TokenDetails { object_addr: token_addr });
 
-        // then verify TokenMinterDetails exist in the same object account
-        assert!(object::object_exists<TokenMinterDetails>(token_minter_object_address), 0);
-        assert!(object::object_exists<token_minter::TokenMinter>(token_minter_object_address), 0);
+        // then verify TokenDetails exist in the same object account as token
+        assert!(object::object_exists<TokenDetails>(token_addr), 0);
+        assert!(object::object_exists<Token>(token_addr), 0);
     }
 }
