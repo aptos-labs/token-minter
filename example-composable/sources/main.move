@@ -1,102 +1,127 @@
 module example_composable::main {
     #[test_only]
-    use aptos_framework::object;
-    #[test_only]
-    use minter::token_minter::{
-        init_token_minter_object,
-        mint_tokens_object
-    };
-    #[test_only]
     use std::option;
     #[test_only]
-    use std::signer::{address_of};
+    use std::signer::address_of;
     #[test_only]
-    use std::string::{utf8};
+    use std::string::utf8;
     #[test_only]
-    use std::vector;
+    use aptos_framework::object;
     #[test_only]
-    use minter::token_refs_old;
+    use aptos_token_objects::collection;
+    #[test_only]
+    use aptos_token_objects::collection::Collection;
+    #[test_only]
+    use aptos_token_objects::royalty;
+    #[test_only]
+    use aptos_token_objects::token;
+    #[test_only]
+    use aptos_token_objects::token::Token;
+    #[test_only]
+    use minter::collection_components;
+    #[test_only]
+    use minter::token_components;
 
     #[test(creator = @0x123, user = @0x456)]
     fun main(creator: &signer, user: &signer) {
+        let creator_addr = address_of(creator);
         let user_addr = address_of(user);
 
-        let sword_token_minter_obj = init_token_minter_object(
+        // First create the collection via the aptos-token-objects framework
+        let sword_collection_construtor_ref = &collection::create_unlimited_collection(
             creator,
             utf8(b"sword collection"),
-            option::none(),
             utf8(b"swords"),
-            utf8(b"https://example.com/swords"),
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
             option::none(),
-            true, // creator_mint_only
-            false,
+            utf8(b"https://example.com/swords"),
         );
-        let powerup_token_minter_obj = init_token_minter_object(
+
+        // Create and initialize collection properties
+        let collection_properties = collection_components::create_properties(
+            false, // mutable_description
+            false, // mutable_uri
+            false, // mutable_token_description
+            false, // mutable_token_name
+            false, // mutable_token_properties
+            false, // mutable_token_uri
+            false, // mutable_royalty
+            false, // tokens_burnable_by_creator
+            false, // tokens_transferable_by_creator
+        );
+        collection_components::create_refs(
+            sword_collection_construtor_ref,
+            collection_components::mutable_description(&collection_properties),
+            collection_components::mutable_uri(&collection_properties),
+            collection_components::mutable_royalty(&collection_properties),
+        );
+        collection_components::init_collection_properties(sword_collection_construtor_ref, collection_properties);
+        let sword_collection = object::object_from_constructor_ref<Collection>(sword_collection_construtor_ref);
+
+        let powerup_collection_constructor_ref = &collection::create_unlimited_collection(
             creator,
             utf8(b"powerup collection"),
-            option::none(),
             utf8(b"powerups"),
-            utf8(b"https://example.com/powerups"),
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            true, // tokens_transferrable_by_creator
             option::none(),
-            true, // creator_mint_only
-            false,
+            utf8(b"https://example.com/powerups"),
         );
 
-        let sword_token_objs = mint_tokens_object(
+        // Create and initialize collection properties
+        let powerup_collection_properties = collection_components::create_properties(
+            false, // mutable_description
+            false, // mutable_uri
+            false, // mutable_token_description
+            false, // mutable_token_name
+            false, // mutable_token_properties
+            false, // mutable_token_uri
+            false, // mutable_royalty
+            false, // tokens_burnable_by_creator
+            true, // tokens_transferable_by_creator
+        );
+        collection_components::create_refs(
+            powerup_collection_constructor_ref,
+            collection_components::mutable_description(&powerup_collection_properties),
+            collection_components::mutable_uri(&powerup_collection_properties),
+            collection_components::mutable_royalty(&powerup_collection_properties),
+        );
+        collection_components::init_collection_properties(
+            powerup_collection_constructor_ref, powerup_collection_properties);
+        let powerup_collection = object::object_from_constructor_ref<Collection>(powerup_collection_constructor_ref);
+
+        // Create Sword token from Sword collection
+        let sword_token_constructor_ref = &token::create(
             creator,
-            sword_token_minter_obj,
-            utf8(b"Sword"),
+            collection::name(sword_collection),
             utf8(b"A fancy sword"),
+            utf8(b"Sword"),
+            royalty::get(sword_collection),
             utf8(b"https://example.com/sword1.png"),
-            1,
-            vector[vector[]],
-            vector[vector[]],
-            vector[vector[]],
-            vector[user_addr],
         );
-        let sword_token_obj = *vector::borrow(&sword_token_objs, 0);
-        let sword_token_addr = object::object_address(&sword_token_obj);
-        assert!(object::owner(sword_token_obj) == user_addr, 0);
+        token_components::create_refs_and_properties(sword_token_constructor_ref, sword_collection);
 
-        let powerup_token_objs = mint_tokens_object(
+        let sword_token_obj = object::object_from_constructor_ref<Token>(sword_token_constructor_ref);
+        let sword_token_addr = object::object_address(&sword_token_obj);
+        assert!(object::owner(sword_token_obj) == creator_addr, 0);
+
+        // Create Powerup token from Powerup collection
+        let powerup_token_constructor_ref = &token::create(
             creator,
-            powerup_token_minter_obj,
-            utf8(b"Powerup"),
+            collection::name(powerup_collection),
             utf8(b"A fancy powerup"),
+            utf8(b"Powerup"),
+            royalty::get(powerup_collection),
             utf8(b"https://example.com/powerup1.png"),
-            1,
-            vector[vector[]],
-            vector[vector[]],
-            vector[vector[]],
-            vector[user_addr],
         );
-        let powerup_token_obj = *vector::borrow(&powerup_token_objs, 0);
-        assert!(object::owner(powerup_token_obj) == user_addr, 0);
+        token_components::create_refs_and_properties(powerup_token_constructor_ref, powerup_collection);
+
+        let powerup_token_obj = object::object_from_constructor_ref<Token>(powerup_token_constructor_ref);
+        assert!(object::owner(powerup_token_obj) == creator_addr, 0);
 
         // Transfer powerup to the sword
-        object::transfer(user, powerup_token_obj, sword_token_addr);
+        object::transfer(creator, powerup_token_obj, sword_token_addr);
         assert!(object::owner(powerup_token_obj) == sword_token_addr, 1);
 
-        // Transfer powerup back to the user as the collection creator
-        token_refs_old::transfer_as_creator(
+        // Transfer powerup to a new user as the collection creator
+        token_components::transfer_as_creator(
             creator,
             powerup_token_obj,
             user_addr,
@@ -107,8 +132,8 @@ module example_composable::main {
         object::transfer(user, powerup_token_obj, sword_token_addr);
         assert!(object::owner(powerup_token_obj) == sword_token_addr, 3);
 
-        // Transfer powerup back to the user as the token owner
-        object::transfer(user, powerup_token_obj, user_addr);
+        // Transfer powerup back to the user as the token owner/creator
+        object::transfer(creator, powerup_token_obj, user_addr);
         assert!(object::owner(powerup_token_obj) == user_addr, 4);
     }
 }

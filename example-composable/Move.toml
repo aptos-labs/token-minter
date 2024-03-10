@@ -10,8 +10,8 @@ example_composable = "_"
 example_composable = "0x12345"
 minter = "0x1c3e5574728c3d0d544f5679229fac153c5f7d78b323751b41860c5ffbb21cfd"
 
-[dependencies.TokenMinterOld]
-local = "../token-minter-old"
+[dependencies.TokenMinter]
+local = "../token-minter"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
