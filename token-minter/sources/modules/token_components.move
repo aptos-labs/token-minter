@@ -230,6 +230,13 @@ module minter::token_components {
         };
     }
 
+    fun assert_token_ownership<T: key>(owner: address, token: Object<T>) {
+        assert!(
+            object::owns(token::collection_object(token), owner),
+            error::permission_denied(ENOT_TOKEN_OWNER),
+        );
+    }
+
     #[view]
     /// Can only be called if the `collection_owner` is the owner of the collection the `token` belongs to.
     public fun token_object_signer(collection_owner: &signer, token: Object<Token>): signer acquires TokenRefs {
