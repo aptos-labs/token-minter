@@ -1,4 +1,4 @@
-module minter::collection_properties {
+module minter_v2::collection_properties_v2 {
 
     use std::error;
     use std::signer;
@@ -7,12 +7,17 @@ module minter::collection_properties {
     use aptos_framework::event;
     use aptos_framework::object::{Self, ConstructorRef, Object};
 
+    use minter::collection_components;
+    use minter::collection_properties;
+
     /// Collection properties does not exist on this object.
     const ECOLLECTION_PROPERTIES_DOES_NOT_EXIST: u64 = 1;
     /// The signer is not the owner of the object.
     const ENOT_OBJECT_OWNER: u64 = 2;
     /// The collection property is already initialized.
     const ECOLLECTION_PROPERTY_ALREADY_INITIALIZED: u64 = 3;
+    /// Collection properties already exists on this object.
+    const ECOLLECTION_PROPERTIES_ALREADY_EXISTS: u64 = 4;
 
     struct CollectionProperty has copy, drop, store {
         value: bool,
@@ -310,10 +315,66 @@ module minter::collection_properties {
         borrow(obj).tokens_transferable_by_collection_owner.value
     }
 
-    // ================================== MIGRATE OUT FUNCTIONS ================================== //
+    // ================================== MIGRATE IN FUNCTIONS ================================== //
+
     /// Migration function used for migrating the refs from one object to another.
     /// This is called when the contract has been upgraded to a new address and version.
     /// This function is used to migrate the refs from the old object to the new object.
+    public fun migrate_v1_collection_properties_to_v2<T: key>(
+        creator: &signer,
+        collection: Object<T>,
+    ) {
+        let collection_signer = &collection_components::collection_object_signer(creator, collection);
+        let properties = &collection_properties::migrate_collection_properties(creator, collection);
+
+        assert!(!collection_properties_exists(collection), error::invalid_state(ECOLLECTION_PROPERTIES_ALREADY_EXISTS));
+        let (mutable_description_value, mutable_description_initialized) =
+            collection_properties::mutable_description(properties);
+        let (mutable_uri_value, mutable_uri_initialized) =
+            collection_properties::mutable_uri(properties);
+        let (mutable_token_description_value, mutable_token_description_initialized) =
+            collection_properties::mutable_token_description(properties);
+        let (mutable_token_name_value, mutable_token_name_initialized) =
+            collection_properties::mutable_token_name(properties);
+        let (mutable_token_properties_value, mutable_token_properties_initialized) =
+            collection_properties::mutable_token_properties(properties);
+        let (mutable_token_uri_value, mutable_token_uri_initialized) =
+            collection_properties::mutable_token_uri(properties);
+        let (mutable_royalty_value, mutable_royalty_initialized) =
+            collection_properties::mutable_royalty(properties);
+        let (tokens_burnable_by_collection_owner_value, tokens_burnable_by_collection_owner_initialized) =
+            collection_properties::tokens_burnable_by_collection_owner(properties);
+        let (tokens_transferable_by_collection_owner_value, tokens_transferable_by_collection_owner_initialized) =
+            collection_properties::tokens_transferable_by_collection_owner(properties);
+
+        move_to(collection_signer, CollectionProperties {
+            mutable_description: create_property(mutable_description_value, mutable_description_initialized),
+            mutable_uri: create_property(mutable_uri_value, mutable_uri_initialized),
+            mutable_token_description: create_property(
+                mutable_token_description_value,
+                mutable_token_description_initialized,
+            ),
+            mutable_token_name: create_property(mutable_token_name_value, mutable_token_name_initialized),
+            mutable_token_properties: create_property(
+                mutable_token_properties_value,
+                mutable_token_properties_initialized,
+            ),
+            mutable_token_uri: create_property(mutable_token_uri_value, mutable_token_uri_initialized),
+            mutable_royalty: create_property(mutable_royalty_value, mutable_royalty_initialized),
+            tokens_burnable_by_collection_owner: create_property(
+                tokens_burnable_by_collection_owner_value,
+                tokens_burnable_by_collection_owner_initialized,
+            ),
+            tokens_transferable_by_collection_owner: create_property(
+                tokens_transferable_by_collection_owner_value,
+                tokens_transferable_by_collection_owner_initialized,
+            ),
+        });
+    }
+
+    /// Get extend ref from v1 to v2 contract. The creator must be the owner of the collection.
+
+    // ================================== MIGRATE OUT FUNCTIONS ================================== //
 
     public fun migrate_collection_properties<T: key>(
         collection_owner: &signer,

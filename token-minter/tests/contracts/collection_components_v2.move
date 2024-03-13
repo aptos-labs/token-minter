@@ -1,4 +1,5 @@
-module minter::collection_components {
+/// This module is an example of the v2 contract upgrade for `collection_components.move`.
+module minter_v2::collection_components_v2 {
 
     use std::error;
     use std::option;
@@ -11,6 +12,7 @@ module minter::collection_components {
     use aptos_token_objects::collection::Collection;
     use aptos_token_objects::royalty;
 
+    use minter::collection_components;
     use minter::collection_properties;
     use minter::collection_properties::CollectionProperties;
 
@@ -137,10 +139,67 @@ module minter::collection_components {
         collection_properties::is_mutable_royalty(obj)
     }
 
-    // ================================== MIGRATE OUT FUNCTIONS ================================== //
+    // ================================== MIGRATE IN FUNCTIONS ================================== //
+
     /// Migration function used for migrating the refs from one object to another.
     /// This is called when the contract has been upgraded to a new address and version.
     /// This function is used to migrate the refs from the old object to the new object.
+
+    /// Get extend ref from v1 to v2 contract. The creator must be the owner of the collection.
+    public fun migrate_v1_extend_ref_to_v2(creator: &signer, collection: Object<Collection>) acquires CollectionRefs {
+        let collection_signer = &collection_components::collection_object_signer(creator, collection);
+        let collection_addr = signer::address_of(collection_signer);
+        let extend_ref = collection_components::migrate_extend_ref(creator, collection);
+
+        if (!collection_refs_exist(collection_addr)) {
+            move_to(collection_signer, CollectionRefs {
+                mutator_ref: option::none(),
+                royalty_mutator_ref: option::none(),
+                extend_ref,
+            });
+        } else {
+            borrow_global_mut<CollectionRefs>(collection_addr).extend_ref = extend_ref;
+        }
+    }
+
+    /// Get mutator ref from v1 to v2 contract. The creator must be the owner of the collection.
+    public fun migrate_v1_mutator_ref_to_v2(creator: &signer, collection: Object<Collection>) acquires CollectionRefs {
+        let collection_signer = &collection_components::collection_object_signer(creator, collection);
+        let collection_addr = signer::address_of(collection_signer);
+        let mutator_ref = collection_components::migrate_mutator_ref(creator, collection);
+
+        if (!collection_refs_exist(collection_addr)) {
+            move_to(collection_signer, CollectionRefs {
+                mutator_ref,
+                royalty_mutator_ref: option::none(),
+                extend_ref: option::none(),
+            });
+        } else {
+            borrow_global_mut<CollectionRefs>(collection_addr).mutator_ref = mutator_ref;
+        }
+    }
+
+    /// Get royalty mutator ref from v1 to v2 contract. The creator must be the owner of the collection.
+    public fun migrate_v1_royalty_mutator_ref_to_v2(
+        creator: &signer,
+        collection: Object<Collection>,
+    ) acquires CollectionRefs {
+        let collection_signer = &collection_components::collection_object_signer(creator, collection);
+        let collection_addr = signer::address_of(collection_signer);
+        let royalty_mutator_ref = collection_components::migrate_royalty_mutator_ref(creator, collection);
+
+        if (!collection_refs_exist(collection_addr)) {
+            move_to(collection_signer, CollectionRefs {
+                mutator_ref: option::none(),
+                royalty_mutator_ref,
+                extend_ref: option::none(),
+            });
+        } else {
+            borrow_global_mut<CollectionRefs>(collection_addr).royalty_mutator_ref = royalty_mutator_ref;
+        }
+    }
+
+    // ================================== MIGRATE OUT FUNCTIONS ================================== //
 
     public fun migrate_extend_ref(
         collection_owner: &signer,

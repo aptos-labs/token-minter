@@ -84,7 +84,7 @@ module example_composable::main {
         assert!(object::owner(powerup_token_obj) == sword_token_addr, 1);
 
         // Transfer powerup to a new user as the collection creator
-        token_components::transfer_as_creator(
+        token_components::transfer_as_collection_owner(
             creator,
             powerup_token_obj,
             user_addr,

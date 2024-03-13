@@ -67,7 +67,7 @@ module example_ownership::part1 {
         assert!(token::description(minted_token) == utf8(b"updated test token description"), 0);
 
         // lets say i wanna add additional struct to token, need to get token signer.
-        let token_signer = token_components::token_signer(creator, minted_token);
+        let token_signer = token_components::token_object_signer(creator, minted_token);
         let token_addr = object::object_address(&minted_token);
         move_to(&token_signer, TokenDetails { object_addr: token_addr });
 

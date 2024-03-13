@@ -124,31 +124,31 @@ module minter::collection_properties_tests {
     #[test(creator = @0x1)]
     public fun test_set_tokens_burnable_by_creator(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
-        collection_properties::set_tokens_burnable_by_creator(creator, properties, false);
-        assert!(!collection_properties::is_tokens_burnable_by_creator(properties), 0);
+        collection_properties::set_tokens_burnable_by_collection_owner(creator, properties, false);
+        assert!(!collection_properties::is_tokens_burnable_by_collection_owner(properties), 0);
     }
 
     #[test(creator = @0x1)]
     #[expected_failure(abort_code = 196611, location = minter::collection_properties)]
     public fun test_reinitialize_tokens_burnable_by_creator_fails(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
-        collection_properties::set_tokens_burnable_by_creator(creator, properties, false); // First initialization
-        collection_properties::set_tokens_burnable_by_creator(creator, properties, true); // Attempt to reinitialize
+        collection_properties::set_tokens_burnable_by_collection_owner(creator, properties, false); // First initialization
+        collection_properties::set_tokens_burnable_by_collection_owner(creator, properties, true); // Attempt to reinitialize
     }
 
     #[test(creator = @0x1)]
-    public fun test_set_tokens_transferable_by_creator(creator: &signer) {
+    public fun test_set_tokens_transferable_by_collection_owner(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
-        collection_properties::set_tokens_transferable_by_creator(creator, properties, false);
-        assert!(!collection_properties::is_tokens_transferable_by_creator(properties), 0);
+        collection_properties::set_tokens_transferable_by_collection_owner(creator, properties, false);
+        assert!(!collection_properties::is_tokens_transferable_by_collection_owner(properties), 0);
     }
 
     #[test(creator = @0x1)]
     #[expected_failure(abort_code = 196611, location = minter::collection_properties)]
-    public fun test_reinitialize_tokens_transferable_by_creator_fails(creator: &signer) {
+    public fun test_reinitialize_tokens_transferable_by_collection_owner_fails(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
-        collection_properties::set_tokens_transferable_by_creator(creator, properties, false); // First initialization
-        collection_properties::set_tokens_transferable_by_creator(creator, properties, true); // Attempt to reinitialize
+        collection_properties::set_tokens_transferable_by_collection_owner(creator, properties, false); // First initialization
+        collection_properties::set_tokens_transferable_by_collection_owner(creator, properties, true); // Attempt to reinitialize
     }
 
     fun create_collection_with_default_properties(

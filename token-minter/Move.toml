@@ -5,9 +5,11 @@ authors = []
 
 [addresses]
 minter = "_"
+minter_v2 = "_"
 
 [dev-addresses]
 minter = "0x123"
+minter_v2 = "0x456"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
