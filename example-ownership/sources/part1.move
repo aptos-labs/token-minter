@@ -44,24 +44,7 @@ module example_ownership::part1 {
         );
 
         // Create and initialize collection properties
-        let collection_properties = collection_components::create_properties(
-            true, // mutable_description
-            true, // mutable_uri
-            true, // mutable_token_description
-            true, // mutable_token_name
-            true, // mutable_token_properties
-            true, // mutable_token_uri
-            true, // mutable_royalty
-            true, // tokens_burnable_by_creator
-            true, // tokens_transferable_by_creator
-        );
-        collection_components::create_refs(
-            collection_construtor_ref,
-            collection_components::mutable_description(&collection_properties),
-            collection_components::mutable_uri(&collection_properties),
-            collection_components::mutable_royalty(&collection_properties),
-        );
-        collection_components::init_collection_properties(collection_construtor_ref, collection_properties);
+        collection_components::create_refs_and_properties(collection_construtor_ref);
         let collection = object::object_from_constructor_ref<Collection>(collection_construtor_ref);
 
         collection_components::set_collection_description(creator, collection, utf8(b"updated test collection description"));
@@ -77,7 +60,7 @@ module example_ownership::part1 {
             royalty::get(collection),
             utf8(b"https://www.google.com"),
         );
-        token_components::create_refs_and_properties(token_constructor_ref, collection);
+        token_components::create_refs(token_constructor_ref);
         let minted_token = object::object_from_constructor_ref<Token>(token_constructor_ref);
 
         token_components::set_description(creator, minted_token, utf8(b"updated test token description"));

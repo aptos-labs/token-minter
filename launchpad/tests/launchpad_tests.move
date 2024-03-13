@@ -15,8 +15,6 @@ module minter::launchpad_tests {
     use launchpad::launchpad;
     #[test_only]
     use minter::coin_utils::setup_user_and_creator_coin_balances;
-    #[test_only]
-    use minter::collection_components;
 
     #[test_only]
     fun initialize_balances(
@@ -62,17 +60,6 @@ module minter::launchpad_tests {
         // they are approving that the creator is allowed to create the collection on it's platform.
         //
         // The creator owns the Launchpad created, the launchpad owns the collection.
-        let collection_properties = collection_components::create_properties(
-            true,  // mutable_description
-            true, // mutable_uri
-            true, // mutable_token_description
-            true, // mutable_token_name
-            true, // mutable_token_properties
-            true, // mutable_token_uri
-            true, // mutable_royalty
-            true, // tokens_burnable_by_creator
-            true, // tokens_transferable_by_creator
-        );
         let launchpad = launchpad::create_launchpad_for_collection(
             creator,
             launchpad_admin, // Launchpad admin must sign this transaction
@@ -80,7 +67,6 @@ module minter::launchpad_tests {
             option::none(), // unlimited supply
             utf8(b"test collection name"),
             utf8(b"https://www.google.com"),
-            option::some(collection_properties),
             option::none(), // royalty
             true, // soulbound
         );
