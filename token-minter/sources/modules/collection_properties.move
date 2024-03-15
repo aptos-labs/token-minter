@@ -218,7 +218,11 @@ module minter::collection_properties {
         collection_owner: &signer,
         obj: Object<T>,
     ): &mut CollectionProperties acquires CollectionProperties {
-        assert!(object::owner(obj) == signer::address_of(collection_owner), error::unauthenticated(ENOT_OBJECT_OWNER));
+        let collection_owner_address = signer::address_of(collection_owner);
+        assert!(
+            object::owner(obj) == collection_owner_address || object::owns(obj, collection_owner_address),
+            error::unauthenticated(ENOT_OBJECT_OWNER)
+        );
         assert!(collection_properties_exists(obj), error::not_found(ECOLLECTION_PROPERTIES_DOES_NOT_EXIST));
 
         borrow_global_mut<CollectionProperties>(object::object_address(&obj))
