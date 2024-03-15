@@ -35,26 +35,7 @@ module example_composable::main {
             option::none(),
             utf8(b"https://example.com/swords"),
         );
-
-        // Create and initialize collection properties
-        let collection_properties = collection_components::create_properties(
-            false, // mutable_description
-            false, // mutable_uri
-            false, // mutable_token_description
-            false, // mutable_token_name
-            false, // mutable_token_properties
-            false, // mutable_token_uri
-            false, // mutable_royalty
-            false, // tokens_burnable_by_creator
-            false, // tokens_transferable_by_creator
-        );
-        collection_components::create_refs(
-            sword_collection_construtor_ref,
-            collection_components::mutable_description(&collection_properties),
-            collection_components::mutable_uri(&collection_properties),
-            collection_components::mutable_royalty(&collection_properties),
-        );
-        collection_components::init_collection_properties(sword_collection_construtor_ref, collection_properties);
+        collection_components::create_refs_and_properties(sword_collection_construtor_ref);
         let sword_collection = object::object_from_constructor_ref<Collection>(sword_collection_construtor_ref);
 
         let powerup_collection_constructor_ref = &collection::create_unlimited_collection(
@@ -66,25 +47,7 @@ module example_composable::main {
         );
 
         // Create and initialize collection properties
-        let powerup_collection_properties = collection_components::create_properties(
-            false, // mutable_description
-            false, // mutable_uri
-            false, // mutable_token_description
-            false, // mutable_token_name
-            false, // mutable_token_properties
-            false, // mutable_token_uri
-            false, // mutable_royalty
-            false, // tokens_burnable_by_creator
-            true, // tokens_transferable_by_creator
-        );
-        collection_components::create_refs(
-            powerup_collection_constructor_ref,
-            collection_components::mutable_description(&powerup_collection_properties),
-            collection_components::mutable_uri(&powerup_collection_properties),
-            collection_components::mutable_royalty(&powerup_collection_properties),
-        );
-        collection_components::init_collection_properties(
-            powerup_collection_constructor_ref, powerup_collection_properties);
+        collection_components::create_refs_and_properties(powerup_collection_constructor_ref);
         let powerup_collection = object::object_from_constructor_ref<Collection>(powerup_collection_constructor_ref);
 
         // Create Sword token from Sword collection
@@ -96,7 +59,7 @@ module example_composable::main {
             royalty::get(sword_collection),
             utf8(b"https://example.com/sword1.png"),
         );
-        token_components::create_refs_and_properties(sword_token_constructor_ref, sword_collection);
+        token_components::create_refs(sword_token_constructor_ref);
 
         let sword_token_obj = object::object_from_constructor_ref<Token>(sword_token_constructor_ref);
         let sword_token_addr = object::object_address(&sword_token_obj);
@@ -111,7 +74,7 @@ module example_composable::main {
             royalty::get(powerup_collection),
             utf8(b"https://example.com/powerup1.png"),
         );
-        token_components::create_refs_and_properties(powerup_token_constructor_ref, powerup_collection);
+        token_components::create_refs(powerup_token_constructor_ref);
 
         let powerup_token_obj = object::object_from_constructor_ref<Token>(powerup_token_constructor_ref);
         assert!(object::owner(powerup_token_obj) == creator_addr, 0);
@@ -121,7 +84,7 @@ module example_composable::main {
         assert!(object::owner(powerup_token_obj) == sword_token_addr, 1);
 
         // Transfer powerup to a new user as the collection creator
-        token_components::transfer_as_creator(
+        token_components::transfer_as_collection_owner(
             creator,
             powerup_token_obj,
             user_addr,
