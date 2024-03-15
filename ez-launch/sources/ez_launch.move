@@ -24,16 +24,21 @@ module ez_launch::ez_launch {
     use std::string;
     use std::string::String;
     use std::vector;
+
     use aptos_framework::timestamp;
     use aptos_framework::object::{Self, Object};
     use aptos_framework::aptos_coin::AptosCoin;
+
     use aptos_token_objects::collection;
     use aptos_token_objects::collection::Collection;
     use aptos_token_objects::royalty;
+    use aptos_token_objects::royalty::Royalty;
     use aptos_token_objects::token;
     use aptos_token_objects::token::Token;
+
     use minter::coin_payment::{Self, CoinPayment};
     use minter::collection_components;
+    use minter::collection_properties;
     use minter::token_components;
     use minter::transfer_token;
     
@@ -45,21 +50,19 @@ module ez_launch::ez_launch {
     const ECOLLECTION_PROPERTIES_DOES_NOT_EXIST: u64 = 3;
     /// The provided collection does not have a EZLaunchRefs resource. Are you sure this Collection was created with ez_launch?
     const EEZ_LAUNCH_REFS_DOES_NOT_EXIST: u64 = 4;
-    /// TokenRefs resource does not exist in the token object address.
-    const ETOKEN_REFS_DOES_NOT_EXIST: u64 = 5;
     /// Royalty configuration is invalid because either numerator and denominator should be none or not none.
-    const EROYALTY_CONFIGURATION_INVALID: u64 = 6;
+    const EROYALTY_CONFIGURATION_INVALID: u64 = 5;
     /// Token Metadata configuration is invalid with different metadata length.
-    const ETOKEN_METADATA_CONFIGURATION_INVALID: u64 = 7;
+    const ETOKEN_METADATA_CONFIGURATION_INVALID: u64 = 6;
     /// Token Minting has not yet started.
-    const EMINTING_HAS_NOT_STARTED_YET: u64 = 8;
-    /// Token Minting has ended.
-    const EMINTING_HAS_ENDED: u64 = 9;
+    const EMINTING_HAS_NOT_STARTED_YET: u64 = 7;
+    /// Tokens are all minted.
+    const ETOKENS_ALL_MINTED: u64 = 8;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct CollectionDetails has key {
         coin_payments: vector<CoinPayment<AptosCoin>>,
-        to_be_minted: vector<Object<Token>>, // to be minted token
+        available_tokens: vector<Object<Token>>, // to be minted token
         random_mint: bool,
         is_soulbound: bool,
         ready_to_mint: bool,
@@ -81,14 +84,14 @@ module ez_launch::ez_launch {
         mutable_token_metadata: bool, // including description, name, properties, uri, to make creator life easier
         random_mint: bool,
         is_soulbound: bool,
-        tokens_burnable_by_creator: bool,
-        tokens_transferable_by_creator: bool,
+        tokens_burnable_by_collection_owner: bool,
+        tokens_transferrable_by_collection_owner: bool,
         max_supply: Option<u64>,
         mint_fee: Option<u64>,
         royalty_numerator: Option<u64>,
         royalty_denominator: Option<u64>,
     ) acquires CollectionDetails {
-        create_collection_internal(
+        create_collection_helper(
             creator,
             description,
             name,
@@ -97,8 +100,8 @@ module ez_launch::ez_launch {
             mutable_token_metadata,
             random_mint,
             is_soulbound,
-            tokens_burnable_by_creator,
-            tokens_transferable_by_creator,
+            tokens_burnable_by_collection_owner,
+            tokens_transferrable_by_collection_owner,
             max_supply,
             mint_fee,
             royalty_numerator,
@@ -106,7 +109,7 @@ module ez_launch::ez_launch {
         );
     }
 
-    public entry fun pre_mint(
+    public entry fun pre_mint_tokens(
         creator: &signer,
         collection: Object<Collection>,
         token_name_vec: vector<String>, // not provided by creator, we could parse from metadata json file
@@ -114,7 +117,7 @@ module ez_launch::ez_launch {
         token_description_vec: vector<String>, // not provided by creator, we could parse from metadata json file
         num_tokens: u64,
     ) acquires CollectionDetails, EZLaunchRefs {
-        assert_owner<Collection>(signer::address_of(creator), collection);
+        assert_owner(signer::address_of(creator), collection);
         assert!(vector::length(&token_name_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
         assert!(vector::length(&token_uri_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
         assert!(vector::length(&token_description_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
@@ -127,14 +130,14 @@ module ez_launch::ez_launch {
         let i = 0;
         let length = vector::length(&token_name_vec);
         while (i < length) {
-            let token = token_pre_mint_internal(
+            let token = pre_mint_token_helper(
                 creator,
                 collection,
                 *vector::borrow(&token_description_vec, i),
                 *vector::borrow(&token_name_vec, i),
                 *vector::borrow(&token_uri_vec, i),
             );
-            vector::push_back(&mut collection_details_obj.to_be_minted, token);
+            vector::push_back(&mut collection_details_obj.available_tokens, token);
             i = i + 1;
         };
     }
@@ -143,32 +146,21 @@ module ez_launch::ez_launch {
         user: &signer,
         collection: Object<Collection>,
     ) acquires CollectionDetails, EZLaunchRefs {
-        mint_internal(user, collection);
+        mint_helper(user, collection);
     }
 
     public entry fun set_minting_status(creator: &signer, collection: Object<Collection>, ready_to_mint: bool) acquires CollectionDetails, EZLaunchRefs {
-        assert_owner<Collection>(signer::address_of(creator), collection);
+        assert_owner(signer::address_of(creator), collection);
         let object_signer = authorized_collection_signer(creator, collection);
         let object_signer_address = signer::address_of(&object_signer);
         let collection_details_obj = borrow_global_mut<CollectionDetails>(object_signer_address);
 
         collection_details_obj.ready_to_mint = ready_to_mint;
     }
-        
-    // ================================= View  ================================= //
-
-    #[view]
-    public fun minting_ended(collection: Object<Collection>): bool acquires CollectionDetails, EZLaunchRefs {
-        let object_signer = collection_signer(collection);
-        let object_signer_address = signer::address_of(&object_signer);
-        let collection_details_obj = borrow_global_mut<CollectionDetails>(object_signer_address);
-
-        vector::length(&collection_details_obj.to_be_minted) == 0
-    }
 
     // ================================= Helper  ================================= //
 
-    fun create_collection_internal(
+    public fun create_collection_helper(
         creator: &signer,
         description: String,
         name: String,
@@ -177,8 +169,8 @@ module ez_launch::ez_launch {
         mutable_token_metadata: bool,
         random_mint: bool,
         is_soulbound: bool,
-        tokens_burnable_by_creator: bool,
-        tokens_transferable_by_creator: bool,
+        tokens_burnable_by_collection_owner: bool,
+        tokens_transferrable_by_collection_owner: bool,
         max_supply: Option<u64>,
         mint_fee: Option<u64>,
         royalty_numerator: Option<u64>,
@@ -186,12 +178,8 @@ module ez_launch::ez_launch {
     ): Object<Collection> acquires CollectionDetails {
         let creator_addr = signer::address_of(creator);
 
-        assert!(option::is_some(&royalty_numerator) == option::is_some(&royalty_denominator), error::invalid_argument(EROYALTY_CONFIGURATION_INVALID));
-        let royalty = if (option::is_some(&royalty_numerator) && option::is_some(&royalty_denominator)) {
-            option::some(royalty::create(option::extract(&mut royalty_numerator), option::extract(&mut royalty_denominator), creator_addr))
-        } else {
-            option::none()
-        };
+        let royalty = royalty(&mut royalty_numerator, &mut royalty_denominator, creator_addr);
+
         let constructor_ref = if (option::is_some(&max_supply)) {
             collection::create_fixed_collection(
                 creator,
@@ -211,30 +199,21 @@ module ez_launch::ez_launch {
             )
         };
 
-        collection_components::create_refs(
-            &constructor_ref,
-            mutable_collection_metadata, // mutable_description
-            mutable_collection_metadata, // mutable_uri
-            mutable_collection_metadata, // mutable_royalty
+        collection_components::create_refs_and_properties(&constructor_ref);
+        let collection = object::object_from_constructor_ref(&constructor_ref);
+        configure_collection_and_token_properties(
+            creator,
+            collection,
+            mutable_collection_metadata,
+            mutable_token_metadata,
+            tokens_burnable_by_collection_owner,
+            tokens_transferrable_by_collection_owner,
         );
-
-        let collection_properties = collection_components::create_properties(
-            mutable_collection_metadata, // mutable_description
-            mutable_collection_metadata, // mutable_uri
-            mutable_token_metadata, // mutable_token_description
-            mutable_token_metadata, // mutable_token_name
-            mutable_token_metadata, // mutable_token_properties
-            mutable_token_metadata, // mutable_token_uri
-            mutable_collection_metadata, // mutable_royalty
-            tokens_burnable_by_creator,
-            tokens_transferable_by_creator,
-        );
-        collection_components::init_collection_properties(&constructor_ref, collection_properties);
 
         let object_signer = object::generate_signer(&constructor_ref);
 
         move_to(&object_signer, CollectionDetails {
-            to_be_minted: vector[],
+            available_tokens: vector[],
             coin_payments: vector[],
             random_mint,
             is_soulbound,
@@ -244,11 +223,7 @@ module ez_launch::ez_launch {
         let object_addr = signer::address_of(&object_signer);
         let collection_details = borrow_global_mut<CollectionDetails>(object_addr);
         
-        if (option::is_some(&mint_fee)) {
-            let mint_fee_category = b"Mint Fee";
-            let coin_payment = coin_payment::create<AptosCoin>(option::extract(&mut mint_fee), creator_addr, string::utf8(mint_fee_category));
-            vector::push_back(&mut collection_details.coin_payments, coin_payment);
-        };
+        add_mint_fee(&mut mint_fee, creator_addr, collection_details);
 
         // (jill) add whitelist
 
@@ -256,17 +231,17 @@ module ez_launch::ez_launch {
             extend_ref: object::generate_extend_ref(&constructor_ref),
         });
 
-        object::object_from_constructor_ref(&constructor_ref)
+        collection
     }
 
-    fun token_pre_mint_internal(
+    public fun pre_mint_token_helper(
         creator: &signer,
         collection: Object<Collection>,
         description: String,
         name: String,
         uri: String,
     ): Object<Token> {
-        assert_owner<Collection>(signer::address_of(creator), collection);
+        assert_owner(signer::address_of(creator), collection);
         let constructor_ref = &token::create(
             creator,
             collection::name(collection),
@@ -276,50 +251,46 @@ module ez_launch::ez_launch {
             uri,
         );
 
-        let collection_address = object::object_address<Collection>(&collection);
-        token_components::create_refs_and_properties(constructor_ref, collection);
+        token_components::create_refs(constructor_ref);
+        let collection_address = object::object_address(&collection);
         transfer_token::transfer(creator, collection_address, constructor_ref);
 
         object::object_from_constructor_ref(constructor_ref)
     }
     
-    fun mint_internal(
+    public fun mint_helper(
         user: &signer,
         collection: Object<Collection>,
     ): Object<Token> acquires CollectionDetails, EZLaunchRefs {
         let object_signer = collection_signer(collection);
         let object_signer_address = signer::address_of(&object_signer);
         assert!(exists<CollectionDetails>(object_signer_address), error::invalid_state(ECOLLECTION_DETAILS_DOES_NOT_EXIST));
-        let collection_details_obj = borrow_global_mut<CollectionDetails>(object_signer_address);
-        let to_be_minted = collection_details_obj.to_be_minted;
-        let length = vector::length(&to_be_minted);
 
-        assert!(length > 0, error::permission_denied(EMINTING_HAS_ENDED));
+        let collection_details_obj = borrow_global_mut<CollectionDetails>(object_signer_address);
+        let available_tokens = collection_details_obj.available_tokens;
+        let length = vector::length(&available_tokens);
+
+        assert!(length > 0, error::permission_denied(ETOKENS_ALL_MINTED));
         assert!(collection_details_obj.ready_to_mint, error::permission_denied(EMINTING_HAS_NOT_STARTED_YET));
 
         // (jill) check against whitelist
 
-        vector::for_each_ref(&collection_details_obj.coin_payments, |coin_payment| {
-            let coin_payment: &CoinPayment<AptosCoin> = coin_payment;
-            coin_payment::execute(user, coin_payment);
-        });
+        execute_coin_payments(user, collection_details_obj);
 
-        
-        let index = if (collection_details_obj.random_mint) {
+        let token_index = if (collection_details_obj.random_mint) {
             timestamp::now_seconds() % length
         } else {
             length - 1
         };
-        let token = *vector::borrow(&to_be_minted, index);
-        let token_address = object::object_address(&token);
+        let token = *vector::borrow(&available_tokens, token_index);
         let user_address = signer::address_of(user);
         object::transfer(&object_signer, token, user_address);
-        vector::pop_back(&mut to_be_minted);
+        vector::pop_back(&mut available_tokens);
 
         if (collection_details_obj.is_soulbound) {
-            assert!(token_components::contains_token_refs(token_address), ETOKEN_REFS_DOES_NOT_EXIST);
-            token_components::disable_ungated_transfer<Token>(&object_signer, token);
+            token_components::freeze_transfer(&object_signer, token);
         };
+
         token
     }
 
@@ -337,8 +308,66 @@ module ez_launch::ez_launch {
         object::generate_signer_for_extending(&refs.extend_ref)
     }
 
+    fun add_mint_fee(
+        mint_fee: &mut Option<u64>,
+        creator_addr: address,
+        collection_details: &mut CollectionDetails,
+    ) {
+        if (option::is_some(mint_fee)) {
+            let mint_fee_category = b"Mint Fee";
+            let coin_payment = coin_payment::create<AptosCoin>(
+                option::extract(mint_fee),
+                creator_addr,
+                string::utf8(mint_fee_category),
+            );
+            vector::push_back(&mut collection_details.coin_payments, coin_payment);
+        };
+    }
+
+    fun execute_coin_payments(
+        user: &signer,
+        collection_details: &mut CollectionDetails,
+    ) {
+        vector::for_each_ref(&collection_details.coin_payments, |coin_payment| {
+            let coin_payment: &CoinPayment<AptosCoin> = coin_payment;
+            coin_payment::execute(user, coin_payment);
+        });
+    }
+
+    fun royalty(
+        royalty_numerator: &mut Option<u64>, 
+        royalty_denominator: &mut Option<u64>, 
+        creator_addr: address
+    ): Option<Royalty> {
+        assert!(option::is_some(royalty_numerator) == option::is_some(royalty_denominator), error::invalid_argument(EROYALTY_CONFIGURATION_INVALID));
+        if (option::is_some(royalty_numerator) && option::is_some(royalty_denominator) && option::extract(royalty_numerator) != 0 && option::extract(royalty_denominator) != 0) {
+            option::some(royalty::create(option::extract(royalty_numerator), option::extract(royalty_denominator), creator_addr))
+        } else {
+            option::none()
+        }
+    }
+
+    fun configure_collection_and_token_properties(
+        creator: &signer,
+        collection: Object<Collection>,
+        mutable_collection_metadata: bool,
+        mutable_token_metadata: bool,
+        tokens_burnable_by_collection_owner: bool,
+        tokens_transferrable_by_collection_owner: bool,
+    ) {
+        collection_properties::set_mutable_description(creator, collection, mutable_collection_metadata);
+        collection_properties::set_mutable_uri(creator, collection, mutable_collection_metadata);
+        collection_properties::set_mutable_royalty(creator, collection, mutable_collection_metadata);
+        collection_properties::set_mutable_token_name(creator, collection, mutable_token_metadata);
+        collection_properties::set_mutable_token_properties(creator, collection, mutable_token_metadata);
+        collection_properties::set_mutable_token_description(creator, collection, mutable_token_metadata);
+        collection_properties::set_mutable_token_uri(creator, collection, mutable_token_metadata);
+        collection_properties::set_tokens_transferable_by_collection_owner(creator, collection, tokens_transferrable_by_collection_owner);
+        collection_properties::set_tokens_burnable_by_collection_owner(creator, collection, tokens_burnable_by_collection_owner);
+    }
+
     inline fun authorized_borrow(creator: &signer, collection: Object<Collection>): &EZLaunchRefs acquires EZLaunchRefs {
-        assert_owner<Collection>(signer::address_of(creator), collection);
+        assert_owner(signer::address_of(creator), collection);
         borrow(collection)
     }
 
@@ -348,66 +377,18 @@ module ez_launch::ez_launch {
             exists<EZLaunchRefs>(collection_address),
             error::not_found(EEZ_LAUNCH_REFS_DOES_NOT_EXIST)
         );
+
         borrow_global<EZLaunchRefs>(collection_address)
     }
+           
+    // ================================= View  ================================= //
 
-    // ================================= Tests  ================================= //
+    #[view]
+    public fun minting_ended(collection: Object<Collection>): bool acquires CollectionDetails, EZLaunchRefs {
+        let object_signer = collection_signer(collection);
+        let object_signer_address = signer::address_of(&object_signer);
+        let collection_details_obj = borrow_global_mut<CollectionDetails>(object_signer_address);
 
-    #[test_only]
-    use std::string::utf8;
-    #[test_only]
-    use ez_launch::ez_launch;
-
-    #[test(creator = @0x1)]
-    fun test_create_collection(creator: &signer) acquires CollectionDetails {
-        let creator_address = signer::address_of(creator);
-        let collection = create_collection_helper(creator);
-        assert!(collection::creator(collection) == creator_address, 1);
-        let collection_address = object::object_address<Collection>(&collection);
-        let pre_minted_token = ez_launch::token_pre_mint_internal(
-            creator,
-            collection,
-            utf8(b"token 2"),
-            utf8(b"ezlaunch.token.come/2"),
-            utf8(b"awesome token"),
-        );
-        assert!(object::owner(pre_minted_token) == collection_address, 1);
-    }
-
-    #[test(creator = @0x1, user = @0x2)]
-    fun test_mint_token(creator: &signer, user: &signer) acquires CollectionDetails, EZLaunchRefs {
-        let user_address = signer::address_of(user);
-        let collection = create_collection_helper(creator);
-        ez_launch::pre_mint(
-            creator,
-            collection,
-            vector[utf8(b"token 1")], // token_name_vec.
-            vector[utf8(b"ezlaunch.token.come/1")], // token_uri_vec.
-            vector[utf8(b"awesome token")], // token_description_vec.
-            1,
-        );
-        ez_launch::set_minting_status(creator, collection, true /* ready_to_mint */);
-        let minted_token = ez_launch::mint_internal(user, collection);
-        assert!(object::owner(minted_token) == user_address, 1);
-    }
-
-    #[test_only]
-    fun create_collection_helper(creator: &signer): Object<Collection> acquires CollectionDetails {
-        ez_launch::create_collection_internal(
-            creator,
-            utf8(b"Default collection description"),
-            utf8(b"Default collection name"),
-            utf8(b"URI"),
-            true, // mutable_collection_metadata
-            true, // mutable_token_metadata
-            false, // random_mint
-            true, // is_soulbound
-            true, // tokens_burnable_by_creator,
-            true, // tokens_transferable_by_creator,
-            option::none(), // No max supply.
-            option::none(), // mint_fee.
-            option::none(), // royalty_numerator.
-            option::none(), // royalty_denominator.
-        )
+        vector::length(&collection_details_obj.available_tokens) == 0
     }
 }

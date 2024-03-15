@@ -28,6 +28,8 @@ module minter::token_components {
     const ETOKEN_NOT_TRANSFERABLE_BY_COLLECTION_OWNER: u64 = 6;
     /// The token does not have ExtendRef, so it is not extendable.
     const ETOKEN_NOT_EXTENDABLE: u64 = 7;
+    /// This token is not owned by the address.
+    const ENOT_TOKEN_OWNER: u64 = 8;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct TokenRefs has key {
@@ -203,7 +205,7 @@ module minter::token_components {
     fun assert_token_collection_owner(collection_owner: address, token: Object<Token>) {
         let collection = token::collection_object(token);
         assert!(
-            object::owner(collection) == collection_owner,
+            object::owner(collection) == collection_owner || object::owns(collection, collection_owner),
             error::permission_denied(ENOT_TOKEN_COLLECTION_OWNER),
         );
     }
