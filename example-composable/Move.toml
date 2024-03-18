@@ -10,6 +10,7 @@ example_composable = "_"
 example_composable = "0x12345"
 minter = "0x1c3e5574728c3d0d544f5679229fac153c5f7d78b323751b41860c5ffbb21cfd"
 minter_v2 = "0x456"
+migration = "0x789"
 
 [dependencies.TokenMinter]
 local = "../token-minter"

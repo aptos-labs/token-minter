@@ -10,6 +10,7 @@ ez_launch = "_"
 ez_launch = "0x123"
 minter = "0x456"
 minter_v2 = "0x789"
+migration = "0x789"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"

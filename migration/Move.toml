@@ -1,17 +1,19 @@
 [package]
-name = "TokenMinter"
+name = "Migration"
 version = "1.0.0"
 authors = []
+upgrade_policy = "compatible"
 
 [addresses]
-minter = "_"
-minter_v2 = "_"
 migration = "_"
 
 [dev-addresses]
 minter = "0x123"
 minter_v2 = "0x456"
 migration = "0x789"
+
+[dependencies.TokenMinter]
+local = "../token-minter"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"

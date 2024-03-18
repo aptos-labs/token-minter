@@ -6,6 +6,7 @@ module minter::collection_properties {
     use std::string::String;
     use aptos_framework::event;
     use aptos_framework::object::{Self, ConstructorRef, Object};
+    use minter::migration_helper;
 
     /// Collection properties does not exist on this object.
     const ECOLLECTION_PROPERTIES_DOES_NOT_EXIST: u64 = 1;
@@ -13,6 +14,8 @@ module minter::collection_properties {
     const ENOT_OBJECT_OWNER: u64 = 2;
     /// The collection property is already initialized.
     const ECOLLECTION_PROPERTY_ALREADY_INITIALIZED: u64 = 3;
+    /// Not the migration object signer.
+    const ENOT_MIGRATION_SIGNER: u64 = 4;
 
     struct CollectionProperty has copy, drop, store {
         value: bool,
@@ -64,7 +67,7 @@ module minter::collection_properties {
 
     /// Creates a new CollectionProperties resource with the values provided.
     /// These are initialized as `false`, and can only be changed once with the setter functions.
-    public fun create_properties(
+    public fun create_uninitialized_properties(
         mutable_description: bool,
         mutable_uri: bool,
         mutable_token_description: bool,
@@ -88,7 +91,7 @@ module minter::collection_properties {
         }
     }
 
-    fun create_property(value: bool, initialized: bool): CollectionProperty {
+    public fun create_property(value: bool, initialized: bool): CollectionProperty {
         CollectionProperty { value, initialized }
     }
 
@@ -218,14 +221,17 @@ module minter::collection_properties {
         collection_owner: &signer,
         obj: Object<T>,
     ): &mut CollectionProperties acquires CollectionProperties {
-        let collection_owner_address = signer::address_of(collection_owner);
-        assert!(
-            object::owner(obj) == collection_owner_address || object::owns(obj, collection_owner_address),
-            error::unauthenticated(ENOT_OBJECT_OWNER)
-        );
+        assert_owner(signer::address_of(collection_owner), obj);
         assert!(collection_properties_exists(obj), error::not_found(ECOLLECTION_PROPERTIES_DOES_NOT_EXIST));
 
         borrow_global_mut<CollectionProperties>(object::object_address(&obj))
+    }
+
+    fun assert_owner<T: key>(collection_owner: address, obj: Object<T>) {
+        assert!(
+            object::owner(obj) == collection_owner,
+            error::permission_denied(ENOT_OBJECT_OWNER),
+        );
     }
 
     public fun mutable_description(properties: &CollectionProperties): (bool, bool) {
@@ -318,11 +324,21 @@ module minter::collection_properties {
     /// Migration function used for migrating the refs from one object to another.
     /// This is called when the contract has been upgraded to a new address and version.
     /// This function is used to migrate the refs from the old object to the new object.
+    ///
+    /// Only the migration contract is allowed to call migration functions. The user must
+    /// call the migration function on the migration contract to migrate.
+    ///
+    /// To migrate in to the new contract, the `ExtendRef` must be present as the `ExtendRef`
+    /// is used to generate the collection object signer.
 
-    public fun migrate_collection_properties<T: key>(
+    public fun migrate_out_collection_properties<T: key>(
+        migration_signer: &signer,
         collection_owner: &signer,
         obj: Object<T>,
     ): CollectionProperties acquires CollectionProperties {
+        let migration_object_signer = migration_helper::migration_object_address();
+        assert!(signer::address_of(migration_signer) == migration_object_signer, ENOT_MIGRATION_SIGNER);
+
         let properties = *authorized_borrow_mut(collection_owner, obj);
 
         let CollectionProperties {
