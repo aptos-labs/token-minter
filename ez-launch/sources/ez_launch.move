@@ -117,29 +117,14 @@ module ez_launch::ez_launch {
         token_description_vec: vector<String>, // not provided by creator, we could parse from metadata json file
         num_tokens: u64,
     ) acquires CollectionDetails, EZLaunchRefs {
-        assert_owner(signer::address_of(creator), collection);
-        assert!(vector::length(&token_name_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
-        assert!(vector::length(&token_uri_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
-        assert!(vector::length(&token_description_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
-
-        let object_signer = authorized_collection_signer(creator, collection);
-        let object_signer_address = signer::address_of(&object_signer);
-        let collection_details_obj = borrow_global_mut<CollectionDetails>(object_signer_address);
-        // not check against the ready_to_mint so that we enable creators to pre_mint anytime even when minting has already started
-
-        let i = 0;
-        let length = vector::length(&token_name_vec);
-        while (i < length) {
-            let token = pre_mint_token_helper(
-                creator,
-                collection,
-                *vector::borrow(&token_description_vec, i),
-                *vector::borrow(&token_name_vec, i),
-                *vector::borrow(&token_uri_vec, i),
-            );
-            vector::push_back(&mut collection_details_obj.available_tokens, token);
-            i = i + 1;
-        };
+        pre_mint_tokens_helper(
+            creator,
+            collection,
+            token_name_vec,
+            token_uri_vec,
+            token_description_vec,
+            num_tokens,
+        )
     }
 
     public entry fun mint(
@@ -234,7 +219,39 @@ module ez_launch::ez_launch {
         collection
     }
 
-    public fun pre_mint_token_helper(
+    public fun pre_mint_tokens_helper(
+        creator: &signer,
+        collection: Object<Collection>,
+        token_name_vec: vector<String>,
+        token_uri_vec: vector<String>,
+        token_description_vec: vector<String>,
+        num_tokens: u64,
+    ) acquires CollectionDetails, EZLaunchRefs {
+        assert!(vector::length(&token_name_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
+        assert!(vector::length(&token_uri_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
+        assert!(vector::length(&token_description_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
+
+        let object_signer = authorized_collection_signer(creator, collection);
+        let object_signer_address = signer::address_of(&object_signer);
+        let collection_details_obj = borrow_global_mut<CollectionDetails>(object_signer_address);
+        // not check against the ready_to_mint so that we enable creators to pre_mint anytime even when minting has already started
+
+        let i = 0;
+        let length = vector::length(&token_name_vec);
+        while (i < length) {
+            let token = pre_mint_token(
+                creator,
+                collection,
+                *vector::borrow(&token_description_vec, i),
+                *vector::borrow(&token_name_vec, i),
+                *vector::borrow(&token_uri_vec, i),
+            );
+            vector::push_back(&mut collection_details_obj.available_tokens, token);
+            i = i + 1;
+        };
+    }
+
+    public fun pre_mint_token(
         creator: &signer,
         collection: Object<Collection>,
         description: String,
