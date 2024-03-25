@@ -227,7 +227,6 @@ module ez_launch::ez_launch {
         token_description_vec: vector<String>,
         num_tokens: u64,
     ) acquires CollectionDetails, EZLaunchRefs {
-        assert_owner(signer::address_of(creator), collection);
         assert!(vector::length(&token_name_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
         assert!(vector::length(&token_uri_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
         assert!(vector::length(&token_description_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
