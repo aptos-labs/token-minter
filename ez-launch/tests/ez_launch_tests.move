@@ -16,7 +16,7 @@ module ez_launch::ez_launch_tests {
         assert!(collection::creator(collection) == creator_address, 1);
 
         let collection_address = object::object_address(&collection);
-        let pre_minted_token = ez_launch::pre_mint_token_helper(
+        let pre_minted_token = ez_launch::pre_mint_token(
             creator,
             collection,
             utf8(b"token 2"),
