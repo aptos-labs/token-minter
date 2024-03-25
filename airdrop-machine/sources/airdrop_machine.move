@@ -3,8 +3,11 @@ module airdrop_machine::airdrop_machine {
     use std::option;
     use std::option::Option;
     use std::signer;
-    use std::string::{String, utf8};
+    use std::string::utf8;
+    use std::string::String;
+    use std::vector;
 
+    use aptos_framework::transaction_context;
     use aptos_framework::object::{Self, Object};
 
     use aptos_token_objects::collection;
@@ -26,18 +29,32 @@ module airdrop_machine::airdrop_machine {
     /// Royalty configuration is invalid because either numerator and denominator should be none or not none.
     const EROYALTY_CONFIGURATION_INVALID: u64 = 3;
     /// Token Minting has not yet started.
-    const EMINTING_HAS_NOT_STARTED: u64 = 7;
+    const EMINTING_HAS_NOT_STARTED: u64 = 4;
+    
+    struct MetadataConfig has store, copy, drop {
+        collection_name: String,
+        collection_description: String,
+        collection_uri: String,
+        token_name_prefix: String,
+        token_description: String,
+        token_uris: vector<String>,
+    }
 
     struct CollectionConfig has key {
+        metadata_config: MetadataConfig,
+        collection: Object<Collection>,
         extend_ref: object::ExtendRef,
         ready_to_mint: bool,
     }
 
     public entry fun create_collection(
         admin: &signer,
-        description: String,
-        name: String,
-        uri: String,
+        collection_name: String,
+        collection_description: String,
+        collection_uri: String,
+        token_name_prefix: String,
+        token_description: String,
+        token_uris: vector<String>,
         mutable_collection_metadata: bool, // including description, uri, royalty, to make admin life easier
         mutable_token_metadata: bool, // including description, name, properties, uri, to make admin life easier
         tokens_burnable_by_collection_owner: bool,
@@ -48,9 +65,12 @@ module airdrop_machine::airdrop_machine {
     ) {
         create_collection_impl(
             admin,
-            description,
-            name,
-            uri,
+            collection_name,
+            collection_description,
+            collection_uri,
+            token_name_prefix,
+            token_description,
+            token_uris,
             mutable_collection_metadata,
             mutable_token_metadata,
             tokens_burnable_by_collection_owner,
@@ -63,17 +83,11 @@ module airdrop_machine::airdrop_machine {
 
     public entry fun mint(
         user: &signer,
-        name: String,
-        description: String,
-        uri: String,
-        collection: Object<Collection>,
+        collection_config_object: Object<CollectionConfig>,
     ) acquires CollectionConfig {
         mint_impl(
             user,
-            collection,
-            name,
-            description,
-            uri,
+            collection_config_object,
             signer::address_of(user),
         );
     }
@@ -82,90 +96,79 @@ module airdrop_machine::airdrop_machine {
      public entry fun mint_with_admin_worker(
         _worker: &signer,
         admin: &signer,
-        collection: Object<Collection>,
-        name: String,
-        description: String,
-        uri: String,
+        collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
     ) acquires CollectionConfig {
         mint_with_admin_impl(
             admin,
-            collection,
-            name,
-            description,
-            uri,
+            collection_config_object,
             recipient_addr,
         );
     }
 
     public entry fun mint_with_admin(
         admin: &signer,
-        collection: Object<Collection>,
-        name: String,
-        description: String,
-        uri: String,
+        collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
     ) acquires CollectionConfig {
         mint_with_admin_impl(
             admin,
-            collection,
-            name,
-            description,
-            uri,
+            collection_config_object,
             recipient_addr,
         );
     }
 
-    public entry fun set_minting_status(admin: &signer, collection: Object<Collection>, ready_to_mint: bool) acquires CollectionConfig {
-        assert_owner(signer::address_of(admin), collection);
-        let collection_config = borrow_mut(collection);
+    public entry fun set_minting_status(admin: &signer, collection_config_object: Object<CollectionConfig>, ready_to_mint: bool) acquires CollectionConfig {
+        assert_owner(signer::address_of(admin), collection_config_object);
+        let collection_config = borrow_mut(collection_config_object);
         collection_config.ready_to_mint = ready_to_mint;
     }
 
     public fun mint_with_admin_impl(
         admin: &signer,
-        collection: Object<Collection>,
-        name: String,
-        description: String,
-        uri: String,
+        collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
     ): Object<Token> acquires CollectionConfig {
-        assert_owner(signer::address_of(admin), collection);
-        mint_impl(admin, collection, name, description, uri, recipient_addr)
+        assert_owner(signer::address_of(admin), collection_config_object);
+        mint_impl(admin, collection_config_object, recipient_addr)
     }
 
     public fun mint_impl(
         _minter: &signer,
-        collection: Object<Collection>,
-        name: String,
-        description: String,
-        uri: String,
+        collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
     ): Object<Token> acquires CollectionConfig {
-        assert!(minting_started(collection), error::permission_denied(EMINTING_HAS_NOT_STARTED));
-
-        let collection_signer = collection_signer(collection);
+        assert!(minting_started(collection_config_object), error::permission_denied(EMINTING_HAS_NOT_STARTED));
         
+        let collection_config = borrow(collection_config_object);
+        let collection_owner_signer = collection_owner_signer(collection_config);
+        let metadata_config = collection_config.metadata_config;
+        let collection = collection_config.collection;
+        let index = get_pseudo_random_index(vector::length(&metadata_config.token_uris));
+        let uri = *vector::borrow(&metadata_config.token_uris, (index as u64));
         let constructor_ref = &token::create_numbered_token(
-            &collection_signer,
+            &collection_owner_signer,
             collection::name(collection),
-            description,
-            name,
+            metadata_config.token_description,
+            metadata_config.token_name_prefix,
             utf8(b""), // name_with_index_suffix 
             royalty::get(collection),
             uri,
         );
 
         token_components::create_refs(constructor_ref);
-        transfer_token::transfer(&collection_signer, recipient_addr, constructor_ref);
+        transfer_token::transfer(&collection_owner_signer, recipient_addr, constructor_ref);
         object::object_from_constructor_ref(constructor_ref)
     }
 
     public fun create_collection_impl(
         admin: &signer,
-        description: String,
-        name: String,
-        uri: String,
+        collection_name: String,
+        collection_description: String,
+        collection_uri: String,
+        token_name_prefix: String,
+        token_description: String,
+        token_uris: vector<String>,
         mutable_collection_metadata: bool,
         mutable_token_metadata: bool,
         tokens_burnable_by_collection_owner: bool,
@@ -173,7 +176,7 @@ module airdrop_machine::airdrop_machine {
         max_supply: Option<u64>,
         royalty_numerator: Option<u64>,
         royalty_denominator: Option<u64>,
-    ): Object<Collection> {
+    ): Object<CollectionConfig> {
         let admin_addr = signer::address_of(admin);
         let object_constructor_ref = &object::create_object(admin_addr);
         let object_signer = object::generate_signer(object_constructor_ref);
@@ -182,19 +185,19 @@ module airdrop_machine::airdrop_machine {
         let constructor_ref = if (option::is_some(&max_supply)) {
             collection::create_fixed_collection(
                 &object_signer,
-                description,
+                collection_description,
                 option::extract(&mut max_supply),
-                name,
+                collection_name,
                 royalty,
-                uri,
+                collection_uri,
             )
         } else {
             collection::create_unlimited_collection(
                 &object_signer,
-                description,
-                name,
+                collection_description,
+                collection_name,
                 royalty,
-                uri,
+                collection_uri,
             )
         };
 
@@ -209,14 +212,22 @@ module airdrop_machine::airdrop_machine {
             tokens_transferrable_by_collection_owner,
         );
 
-        let object_signer = object::generate_signer(&constructor_ref);
-
+        let metadata_config = MetadataConfig {
+            collection_name,
+            collection_description,
+            collection_uri,
+            token_name_prefix,
+            token_description,
+            token_uris,
+        };
         move_to(&object_signer, CollectionConfig {
+            metadata_config,
+            collection,
             extend_ref: object::generate_extend_ref(object_constructor_ref),
             ready_to_mint: false,
         });
 
-        collection
+        object::address_to_object(signer::address_of(&object_signer))
     }
 
     fun royalty(
@@ -252,38 +263,28 @@ module airdrop_machine::airdrop_machine {
     }
 
     fun assert_owner<T: key>(owner: address, object: Object<T>) {
-        assert!(object::owner(object) == owner || object::owns(object, owner), error::permission_denied(ENOT_OWNER));
+        assert!(object::owner(object) == owner, error::permission_denied(ENOT_OWNER));
     }
 
-    fun collection_signer(collection: Object<Collection>): signer acquires CollectionConfig {
-        let refs = borrow(collection);
-        object::generate_signer_for_extending(&refs.extend_ref)
+    inline fun collection_owner_signer(collection_config: &CollectionConfig): signer acquires CollectionConfig {
+        object::generate_signer_for_extending(&collection_config.extend_ref)
     }
 
-    inline fun borrow(collection: Object<Collection>): &CollectionConfig acquires CollectionConfig {
-        let collection_address = object::object_address(&collection);
-        assert!(
-            exists<CollectionConfig>(collection_address),
-            error::not_found(ECOLLECTION_CONFIG_DOES_NOT_EXIST)
-        );
-
-        borrow_global<CollectionConfig>(collection_address)
+    inline fun borrow(collection_config_object: Object<CollectionConfig>): &CollectionConfig acquires CollectionConfig {
+        borrow_global<CollectionConfig>(object::object_address(&collection_config_object))
     }
 
-    inline fun borrow_mut(collection: Object<Collection>): &mut CollectionConfig acquires CollectionConfig {
-        let collection_address = object::object_address(&collection);
-        assert!(
-            exists<CollectionConfig>(collection_address),
-            error::not_found(ECOLLECTION_CONFIG_DOES_NOT_EXIST)
-        );
+    inline fun borrow_mut(collection_config_object: Object<CollectionConfig>): &mut CollectionConfig acquires CollectionConfig {
+        borrow_global_mut<CollectionConfig>(object::object_address(&collection_config_object))
+    }
 
-        borrow_global_mut<CollectionConfig>(collection_address)
+    fun get_pseudo_random_index(length: u64): u64 {
+        let txn_hash = transaction_context::get_transaction_hash();
+        ((*vector::borrow(&txn_hash, 0) as u64) * 256u64) % length
     }
 
     #[view]
-    public fun minting_started(collection: Object<Collection>): bool acquires CollectionConfig {
-        let collection_config = borrow(collection);
-
-        collection_config.ready_to_mint == true
+    public fun minting_started(collection_config_object: Object<CollectionConfig>): bool acquires CollectionConfig {
+        borrow(collection_config_object).ready_to_mint
     }
 }

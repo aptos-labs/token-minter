@@ -1,24 +1,21 @@
 #[test_only]
 module airdrop_machine::airdrop_machine_tests {
-    use std::string::utf8;
     use std::option;
     use std::signer;
+    use std::string::utf8;
     use aptos_framework::object;
     use aptos_framework::object::Object;
-    use aptos_token_objects::collection::Collection;
     use airdrop_machine::airdrop_machine;
+    use airdrop_machine::airdrop_machine::CollectionConfig;
 
     #[test(admin = @0x1, user = @0x2)]
     fun test_admin_minted_token(admin: &signer, user: &signer) {
         let user_address = signer::address_of(user);
-        let collection = create_collection_helper(admin);
-        airdrop_machine::set_minting_status(admin, collection, true);
+        let collection_config = create_collection_helper(admin);
+        airdrop_machine::set_minting_status(admin, collection_config, true);
         let admin_minted_token = airdrop_machine::mint_with_admin_impl(
             admin,
-            collection,
-            utf8(b"token 1"),
-            utf8(b"awesome token"),
-            utf8(b"airdrop.token.com"),
+            collection_config,
             user_address,
         );
         assert!(object::owner(admin_minted_token) == user_address, 1);
@@ -27,21 +24,18 @@ module airdrop_machine::airdrop_machine_tests {
     #[test(admin = @0x1, user = @0x2)]
     fun test_user_minted_token(admin: &signer, user: &signer) {
         let user_address = signer::address_of(user);
-        let collection = create_collection_helper(admin);
-        airdrop_machine::set_minting_status(admin, collection, true);
+        let collection_config = create_collection_helper(admin);
+        airdrop_machine::set_minting_status(admin, collection_config, true);
         let user_minted_token = airdrop_machine::mint_impl(
             user,
-            collection,
-            utf8(b"token 1"),
-            utf8(b"awesome token"),
-            utf8(b"airdrop.token.com"),
+            collection_config,
             user_address,
         );
         assert!(object::owner(user_minted_token) == user_address, 1);
     }
 
     #[test(admin = @0x1, user = @0x2)]
-    #[expected_failure(abort_code = 327687, location = airdrop_machine::airdrop_machine)]
+    #[expected_failure(abort_code = 327684, location = airdrop_machine::airdrop_machine)]
     fun test_mint_fail(admin: &signer, user: &signer) {
         let user_address = signer::address_of(user);
         let collection = create_collection_helper(admin);
@@ -49,19 +43,19 @@ module airdrop_machine::airdrop_machine_tests {
         airdrop_machine::mint_impl(
             user,
             collection,
-            utf8(b"token 1"),
-            utf8(b"awesome token"),
-            utf8(b"airdrop.token.com"),
             user_address,
         );
     }
 
-    fun create_collection_helper(admin: &signer): Object<Collection> {
+    fun create_collection_helper(admin: &signer): Object<CollectionConfig> {
         airdrop_machine::create_collection_impl(
             admin,
-            utf8(b"Default collection description"),
-            utf8(b"Default collection name"),
-            utf8(b"URI"),
+            utf8(b"Airdrop collection description"),
+            utf8(b"Airdrop collection name"),
+            utf8(b"Airdrop collection URI"),
+            utf8(b"Airdrop token description"),
+            utf8(b"Airdrop token name"),
+            vector[utf8(b"Airdrop token URI 1"), utf8(b"Airdrop token URI 2")],
             true, // mutable_collection_metadata
             true, // mutable_token_metadata
             true, // tokens_burnable_by_collection_owner,
@@ -71,6 +65,4 @@ module airdrop_machine::airdrop_machine_tests {
             option::none(), // royalty_denominator.
         )
     }
-
-    // TODO(jill) add more edge cases to test
 }
