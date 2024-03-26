@@ -1,3 +1,7 @@
+/// Migration function used for migrating the refs from one object to another.
+/// This is called when the contract has been upgraded to a new address and version.
+/// This function is used to migrate the refs from the old object to the new object.
+///
 /// This module migrate the token refs from version x to version y contract.
 module migration::migration {
 
@@ -29,14 +33,10 @@ module migration::migration {
     #[test_only]
     use minter_v2::token_components_v2;
 
-    /// Migration function used for migrating the refs from one object to another.
-    /// This is called when the contract has been upgraded to a new address and version.
-    /// This function is used to migrate the refs from the old object to the new object.
-
     /// Not the owner of the migration contract.
     const ENOT_MIGRATION_CONTRACT_OWNER: u64 = 1;
 
-    const MIGRATION_CONTRACT_SEED: vector<u8> = b"migration::migration_contract";
+    const MIGRATION_CONTRACT_SEED: vector<u8> = b"minter::migration_contract";
 
     struct MigrationRefs has key {
         extend_ref: ExtendRef,

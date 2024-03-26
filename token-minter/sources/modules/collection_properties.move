@@ -14,7 +14,7 @@ module minter::collection_properties {
     const ENOT_OBJECT_OWNER: u64 = 2;
     /// The collection property is already initialized.
     const ECOLLECTION_PROPERTY_ALREADY_INITIALIZED: u64 = 3;
-    /// Not the migration object signer.
+    /// Caller not authorized to call migration functions.
     const ENOT_MIGRATION_SIGNER: u64 = 4;
 
     struct CollectionProperty has copy, drop, store {

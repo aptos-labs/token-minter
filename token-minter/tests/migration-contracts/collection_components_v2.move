@@ -22,7 +22,7 @@ module minter_v2::collection_components_v2 {
     const EFIELD_NOT_MUTABLE: u64 = 3;
     /// The collection does not have ExtendRef, so it is not extendable.
     const ECOLLECTION_NOT_EXTENDABLE: u64 = 4;
-    /// Not the migration object signer.
+    /// Caller not authorized to call migration functions.
     const ENOT_MIGRATION_SIGNER: u64 = 5;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]

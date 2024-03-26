@@ -58,6 +58,32 @@ jobs:
           nix_path: nixpkgs=channel:nixpkgs-unstable
       - name: Runs move tests.
         run: nix-shell --command 'aptos move test --dev'
+  ez-launch:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./ez-launch
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Nix
+        uses: cachix/install-nix-action@v17
+        with:
+          nix_path: nixpkgs=channel:nixpkgs-unstable
+      - name: Runs move tests.
+        run: nix-shell --command 'aptos move test --dev'
+  airdrop-machine:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./airdrop-machine
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Nix
+        uses: cachix/install-nix-action@v17
+        with:
+          nix_path: nixpkgs=channel:nixpkgs-unstable
+      - name: Runs move tests.
+        run: nix-shell --command 'aptos move test --dev'
   migration:
     runs-on: ubuntu-latest
     defaults:

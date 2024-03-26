@@ -30,7 +30,7 @@ module minter_v2::token_components_v2 {
     const ETOKEN_NOT_TRANSFERABLE_BY_COLLECTION_OWNER: u64 = 6;
     /// The token does not have ExtendRef, so it is not extendable.
     const ETOKEN_NOT_EXTENDABLE: u64 = 7;
-    /// Not the migration object signer.
+    /// Caller not authorized to call migration functions.
     const ENOT_MIGRATION_SIGNER: u64 = 8;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]

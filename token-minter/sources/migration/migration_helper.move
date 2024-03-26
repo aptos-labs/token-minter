@@ -3,7 +3,7 @@ module minter::migration_helper {
     use aptos_framework::object;
 
     // The seed for the migration contract
-    const MIGRATION_CONTRACT_SEED: vector<u8> = b"migration::migration_contract";
+    const MIGRATION_CONTRACT_SEED: vector<u8> = b"minter::migration_contract";
 
     #[view]
     /// Helper function to get the address of the migration object signer.

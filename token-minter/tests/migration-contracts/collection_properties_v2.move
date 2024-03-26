@@ -18,7 +18,7 @@ module minter_v2::collection_properties_v2 {
     const ECOLLECTION_PROPERTY_ALREADY_INITIALIZED: u64 = 3;
     /// Collection properties already exists on this object.
     const ECOLLECTION_PROPERTIES_ALREADY_EXISTS: u64 = 4;
-    /// Not the migration object signer.
+    /// Caller not authorized to call migration functions.
     const ENOT_MIGRATION_SIGNER: u64 = 5;
 
     struct CollectionProperty has copy, drop, store {

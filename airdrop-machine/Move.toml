@@ -1,13 +1,13 @@
 [package]
-name = "EZLaunch"
+name = "AirdropMachine"
 version = "1.0.0"
 authors = []
 
 [addresses]
-ez_launch = "_"
+airdrop_machine = "_"
 
 [dev-addresses]
-ez_launch = "0x123"
+airdrop_machine = "0x123"
 minter = "0x456"
 minter_v2 = "0x457"
 migration = "0x789"
