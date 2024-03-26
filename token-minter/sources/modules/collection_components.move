@@ -25,6 +25,8 @@ module minter::collection_components {
     const ECOLLECTION_NOT_EXTENDABLE: u64 = 4;
     /// Caller not authorized to call migration functions.
     const ENOT_MIGRATION_SIGNER: u64 = 5;
+    /// The collection does not support forced transfers by collection owner.
+    const ECOLLECTION_NOT_TRANSFERABLE_BY_COLLECTION_OWNER: u64 = 6;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct CollectionRefs has key {
@@ -34,6 +36,8 @@ module minter::collection_components {
         royalty_mutator_ref: Option<royalty::MutatorRef>,
         /// Used to generate signer, needed for extending object if needed in the future.
         extend_ref: Option<object::ExtendRef>,
+        /// Used to transfer the collection as the collection owner.
+        transfer_ref: Option<object::TransferRef>,
     }
 
     /// Collection properties does not exist on this object.
@@ -48,6 +52,7 @@ module minter::collection_components {
             option::some(collection::generate_mutator_ref(constructor_ref)),
             option::some(royalty::generate_mutator_ref(object::generate_extend_ref(constructor_ref))),
             option::some(object::generate_extend_ref(constructor_ref)),
+            option::some(object::generate_transfer_ref(constructor_ref)),
         );
 
         let properties = create_default_properties(true);
@@ -93,6 +98,20 @@ module minter::collection_components {
         );
     }
 
+    /// Force transfer a collection as the collection owner.
+    /// Feature only works if the `TransferRef` is stored in the `CollectionRefs`.
+    public fun transfer_as_owner(
+        collection_owner: &signer,
+        collection: Object<Collection>,
+        to_addr: address,
+    ) acquires CollectionRefs {
+        let transfer_ref = &authorized_borrow_refs_mut(collection, collection_owner).transfer_ref;
+        assert!(option::is_some(transfer_ref), error::not_found(ECOLLECTION_NOT_TRANSFERABLE_BY_COLLECTION_OWNER));
+
+        let linear_transfer_ref = object::generate_linear_transfer_ref(option::borrow(transfer_ref));
+        object::transfer_with_ref(linear_transfer_ref, to_addr)
+    }
+
     inline fun authorized_borrow_refs_mut<T: key>(
         collection: Object<T>,
         collection_owner: &signer
@@ -113,11 +132,13 @@ module minter::collection_components {
         mutator_ref: Option<collection::MutatorRef>,
         royalty_mutator_ref: Option<royalty::MutatorRef>,
         extend_ref: Option<object::ExtendRef>,
+        transfer_ref: Option<object::TransferRef>,
     ) {
         move_to(collection_object_signer, CollectionRefs {
             mutator_ref,
             royalty_mutator_ref,
             extend_ref,
+            transfer_ref,
         });
     }
 
@@ -203,6 +224,19 @@ module minter::collection_components {
         royalty_mutator_ref
     }
 
+    public fun migrate_out_transfer_ref(
+        migration_signer: &signer,
+        collection_owner: &signer,
+        collection: Object<Collection>,
+    ): Option<object::TransferRef> acquires CollectionRefs {
+        assert_migration_object_signer(migration_signer);
+
+        let refs = authorized_borrow_refs_mut(collection, collection_owner);
+        let transfer_ref = extract_ref_if_present(&mut refs.transfer_ref);
+        destroy_collection_refs_if_all_refs_migrated(refs, object::object_address(&collection));
+        transfer_ref
+    }
+
     fun extract_ref_if_present<T: drop + store>(ref: &mut Option<T>): Option<T> {
         if (option::is_some(ref)) {
             option::some(option::extract(ref))
@@ -222,6 +256,7 @@ module minter::collection_components {
                 mutator_ref: _,
                 royalty_mutator_ref: _,
                 extend_ref: _,
+                transfer_ref: _,
             } = move_from<CollectionRefs>(collection_address);
         }
     }
