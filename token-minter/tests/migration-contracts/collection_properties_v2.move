@@ -7,8 +7,8 @@ module minter_v2::collection_properties_v2 {
     use aptos_framework::event;
     use aptos_framework::object::{Self, ConstructorRef, Object};
 
-    use minter::collection_components;
-    use minter::collection_properties;
+    use aptos_token_objects::collection::Collection;
+    use minter::migration_helper;
 
     /// Collection properties does not exist on this object.
     const ECOLLECTION_PROPERTIES_DOES_NOT_EXIST: u64 = 1;
@@ -18,6 +18,8 @@ module minter_v2::collection_properties_v2 {
     const ECOLLECTION_PROPERTY_ALREADY_INITIALIZED: u64 = 3;
     /// Collection properties already exists on this object.
     const ECOLLECTION_PROPERTIES_ALREADY_EXISTS: u64 = 4;
+    /// Caller not authorized to call migration functions.
+    const ENOT_MIGRATION_SIGNER: u64 = 5;
 
     struct CollectionProperty has copy, drop, store {
         value: bool,
@@ -69,7 +71,7 @@ module minter_v2::collection_properties_v2 {
 
     /// Creates a new CollectionProperties resource with the values provided.
     /// These are initialized as `false`, and can only be changed once with the setter functions.
-    public fun create_properties(
+    public fun create_uninitialized_properties(
         mutable_description: bool,
         mutable_uri: bool,
         mutable_token_description: bool,
@@ -93,7 +95,7 @@ module minter_v2::collection_properties_v2 {
         }
     }
 
-    fun create_property(value: bool, initialized: bool): CollectionProperty {
+    public fun create_property(value: bool, initialized: bool): CollectionProperty {
         CollectionProperty { value, initialized }
     }
 
@@ -223,10 +225,17 @@ module minter_v2::collection_properties_v2 {
         collection_owner: &signer,
         obj: Object<T>,
     ): &mut CollectionProperties acquires CollectionProperties {
-        assert!(object::owner(obj) == signer::address_of(collection_owner), error::unauthenticated(ENOT_OBJECT_OWNER));
+        assert_owner(signer::address_of(collection_owner), obj);
         assert!(collection_properties_exists(obj), error::not_found(ECOLLECTION_PROPERTIES_DOES_NOT_EXIST));
 
         borrow_global_mut<CollectionProperties>(object::object_address(&obj))
+    }
+
+    fun assert_owner<T: key>(collection_owner: address, obj: Object<T>) {
+        assert!(
+            object::owner(obj) == collection_owner,
+            error::permission_denied(ENOT_OBJECT_OWNER),
+        );
     }
 
     public fun mutable_description(properties: &CollectionProperties): (bool, bool) {
@@ -286,8 +295,8 @@ module minter_v2::collection_properties_v2 {
     }
 
     #[view]
-    public fun is_mutable_token_name<T: key>(properties: Object<T>): bool acquires CollectionProperties {
-        borrow(properties).mutable_token_name.value
+    public fun is_mutable_token_name<T: key>(obj: Object<T>): bool acquires CollectionProperties {
+        borrow(obj).mutable_token_name.value
     }
 
     #[view]
@@ -320,66 +329,59 @@ module minter_v2::collection_properties_v2 {
     /// Migration function used for migrating the refs from one object to another.
     /// This is called when the contract has been upgraded to a new address and version.
     /// This function is used to migrate the refs from the old object to the new object.
-    public fun migrate_v1_collection_properties_to_v2<T: key>(
-        creator: &signer,
-        collection: Object<T>,
-    ) {
-        let collection_signer = &collection_components::collection_object_signer(creator, collection);
-        let properties = &collection_properties::migrate_collection_properties(creator, collection);
+    ///
+    /// To migrate in to the new contract, the `ExtendRef` must be present as the `ExtendRef`
+    /// is used to generate the collection object signer.
 
-        assert!(!collection_properties_exists(collection), error::invalid_state(ECOLLECTION_PROPERTIES_ALREADY_EXISTS));
-        let (mutable_description_value, mutable_description_initialized) =
-            collection_properties::mutable_description(properties);
-        let (mutable_uri_value, mutable_uri_initialized) =
-            collection_properties::mutable_uri(properties);
-        let (mutable_token_description_value, mutable_token_description_initialized) =
-            collection_properties::mutable_token_description(properties);
-        let (mutable_token_name_value, mutable_token_name_initialized) =
-            collection_properties::mutable_token_name(properties);
-        let (mutable_token_properties_value, mutable_token_properties_initialized) =
-            collection_properties::mutable_token_properties(properties);
-        let (mutable_token_uri_value, mutable_token_uri_initialized) =
-            collection_properties::mutable_token_uri(properties);
-        let (mutable_royalty_value, mutable_royalty_initialized) =
-            collection_properties::mutable_royalty(properties);
-        let (tokens_burnable_by_collection_owner_value, tokens_burnable_by_collection_owner_initialized) =
-            collection_properties::tokens_burnable_by_collection_owner(properties);
-        let (tokens_transferable_by_collection_owner_value, tokens_transferable_by_collection_owner_initialized) =
-            collection_properties::tokens_transferable_by_collection_owner(properties);
+    /// This function is used to migrate the mutator ref from the old object to the new object (CollectionRefs).
+    /// The creator must be the owner of the collection.
+    public fun migrate_in_collection_properties(
+        migration_signer: &signer,
+        collection_owner: &signer,
+        collection_signer: &signer,
+        collection: Object<Collection>,
+        mutable_description: CollectionProperty,
+        mutable_uri: CollectionProperty,
+        mutable_token_description: CollectionProperty,
+        mutable_token_name: CollectionProperty,
+        mutable_token_properties: CollectionProperty,
+        mutable_token_uri: CollectionProperty,
+        mutable_royalty: CollectionProperty,
+        tokens_burnable_by_collection_owner: CollectionProperty,
+        tokens_transferable_by_collection_owner: CollectionProperty,
+    ) {
+        let migration_object_signer = migration_helper::migration_object_address();
+        assert!(signer::address_of(migration_signer) == migration_object_signer, ENOT_MIGRATION_SIGNER);
+
+        assert_owner(signer::address_of(collection_owner), collection);
+        assert!(
+            !collection_properties_exists(collection),
+            error::invalid_state(ECOLLECTION_PROPERTIES_ALREADY_EXISTS),
+        );
 
         move_to(collection_signer, CollectionProperties {
-            mutable_description: create_property(mutable_description_value, mutable_description_initialized),
-            mutable_uri: create_property(mutable_uri_value, mutable_uri_initialized),
-            mutable_token_description: create_property(
-                mutable_token_description_value,
-                mutable_token_description_initialized,
-            ),
-            mutable_token_name: create_property(mutable_token_name_value, mutable_token_name_initialized),
-            mutable_token_properties: create_property(
-                mutable_token_properties_value,
-                mutable_token_properties_initialized,
-            ),
-            mutable_token_uri: create_property(mutable_token_uri_value, mutable_token_uri_initialized),
-            mutable_royalty: create_property(mutable_royalty_value, mutable_royalty_initialized),
-            tokens_burnable_by_collection_owner: create_property(
-                tokens_burnable_by_collection_owner_value,
-                tokens_burnable_by_collection_owner_initialized,
-            ),
-            tokens_transferable_by_collection_owner: create_property(
-                tokens_transferable_by_collection_owner_value,
-                tokens_transferable_by_collection_owner_initialized,
-            ),
+            mutable_description,
+            mutable_uri,
+            mutable_token_description,
+            mutable_token_name,
+            mutable_token_properties,
+            mutable_token_uri,
+            mutable_royalty,
+            tokens_burnable_by_collection_owner,
+            tokens_transferable_by_collection_owner,
         });
     }
 
-    /// Get extend ref from v1 to v2 contract. The creator must be the owner of the collection.
-
     // ================================== MIGRATE OUT FUNCTIONS ================================== //
 
-    public fun migrate_collection_properties<T: key>(
+    public fun migrate_out_collection_properties<T: key>(
+        migration_signer: &signer,
         collection_owner: &signer,
         obj: Object<T>,
     ): CollectionProperties acquires CollectionProperties {
+        let migration_object_signer = migration_helper::migration_object_address();
+        assert!(signer::address_of(migration_signer) == migration_object_signer, ENOT_MIGRATION_SIGNER);
+
         let properties = *authorized_borrow_mut(collection_owner, obj);
 
         let CollectionProperties {

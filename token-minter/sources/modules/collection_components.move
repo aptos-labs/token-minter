@@ -10,6 +10,7 @@ module minter::collection_components {
     use aptos_token_objects::collection;
     use aptos_token_objects::collection::Collection;
     use aptos_token_objects::royalty;
+    use minter::migration_helper;
 
     use minter::collection_properties;
     use minter::collection_properties::CollectionProperties;
@@ -22,6 +23,8 @@ module minter::collection_components {
     const EFIELD_NOT_MUTABLE: u64 = 3;
     /// The collection does not have ExtendRef, so it is not extendable.
     const ECOLLECTION_NOT_EXTENDABLE: u64 = 4;
+    /// Caller not authorized to call migration functions.
+    const ENOT_MIGRATION_SIGNER: u64 = 5;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct CollectionRefs has key {
@@ -40,13 +43,12 @@ module minter::collection_components {
     public fun create_refs_and_properties(constructor_ref: &ConstructorRef): Object<CollectionRefs> {
         let collection_signer = &object::generate_signer(constructor_ref);
 
-        move_to(collection_signer, CollectionRefs {
-            mutator_ref: option::some(collection::generate_mutator_ref(constructor_ref)),
-            royalty_mutator_ref: option::some(
-                royalty::generate_mutator_ref(object::generate_extend_ref(constructor_ref))
-            ),
-            extend_ref: option::some(object::generate_extend_ref(constructor_ref)),
-        });
+        init_collection_refs(
+            collection_signer,
+            option::some(collection::generate_mutator_ref(constructor_ref)),
+            option::some(royalty::generate_mutator_ref(object::generate_extend_ref(constructor_ref))),
+            option::some(object::generate_extend_ref(constructor_ref)),
+        );
 
         let properties = create_default_properties(true);
         collection_properties::init(constructor_ref, properties);
@@ -55,7 +57,7 @@ module minter::collection_components {
     }
 
     fun create_default_properties(value: bool): CollectionProperties {
-        collection_properties::create_properties(value, value, value, value, value, value, value, value, value)
+        collection_properties::create_uninitialized_properties(value, value, value, value, value, value, value, value, value)
     }
 
     public fun set_collection_description(
@@ -65,7 +67,7 @@ module minter::collection_components {
     ) acquires CollectionRefs {
         assert!(is_mutable_description(collection), error::permission_denied(EFIELD_NOT_MUTABLE));
         collection::set_description(
-            option::borrow(&authorized_borrow_refs(collection, collection_owner).mutator_ref),
+            option::borrow(&authorized_borrow_refs_mut(collection, collection_owner).mutator_ref),
             description,
         );
     }
@@ -76,7 +78,7 @@ module minter::collection_components {
         uri: String,
     ) acquires CollectionRefs {
         assert!(is_mutable_uri(collection), error::permission_denied(EFIELD_NOT_MUTABLE));
-        collection::set_uri(option::borrow(&authorized_borrow_refs(collection, collection_owner).mutator_ref), uri);
+        collection::set_uri(option::borrow(&authorized_borrow_refs_mut(collection, collection_owner).mutator_ref), uri);
     }
 
     public fun set_collection_royalties(
@@ -86,16 +88,17 @@ module minter::collection_components {
     ) acquires CollectionRefs {
         assert!(is_mutable_royalty(collection), error::permission_denied(EFIELD_NOT_MUTABLE));
         royalty::update(
-            option::borrow(&authorized_borrow_refs(collection, collection_owner).royalty_mutator_ref),
+            option::borrow(&authorized_borrow_refs_mut(collection, collection_owner).royalty_mutator_ref),
             royalty
         );
     }
 
-    inline fun authorized_borrow_refs<T: key>(collection: Object<T>, collection_owner: &signer): &CollectionRefs {
+    inline fun authorized_borrow_refs_mut<T: key>(
+        collection: Object<T>,
+        collection_owner: &signer
+    ): &mut CollectionRefs {
         assert_owner(signer::address_of(collection_owner), collection);
-
-        let collection_address = collection_refs_address(collection);
-        borrow_global<CollectionRefs>(collection_address)
+        borrow_global_mut<CollectionRefs>(collection_refs_address(collection))
     }
 
     fun assert_owner<T: key>(collection_owner: address, obj: Object<T>) {
@@ -105,13 +108,26 @@ module minter::collection_components {
         );
     }
 
+    fun init_collection_refs(
+        collection_object_signer: &signer,
+        mutator_ref: Option<collection::MutatorRef>,
+        royalty_mutator_ref: Option<royalty::MutatorRef>,
+        extend_ref: Option<object::ExtendRef>,
+    ) {
+        move_to(collection_object_signer, CollectionRefs {
+            mutator_ref,
+            royalty_mutator_ref,
+            extend_ref,
+        });
+    }
+
     #[view]
     /// Can only be called if the `collection_owner` is the owner of the collection.
     public fun collection_object_signer<T: key>(
         collection_owner: &signer,
         collection: Object<T>,
     ): signer acquires CollectionRefs {
-        let extend_ref = &authorized_borrow_refs(collection, collection_owner).extend_ref;
+        let extend_ref = &authorized_borrow_refs_mut(collection, collection_owner).extend_ref;
         assert!(option::is_some(extend_ref), ECOLLECTION_NOT_EXTENDABLE);
 
         object::generate_signer_for_extending(option::borrow(extend_ref))
@@ -141,43 +157,49 @@ module minter::collection_components {
     /// Migration function used for migrating the refs from one object to another.
     /// This is called when the contract has been upgraded to a new address and version.
     /// This function is used to migrate the refs from the old object to the new object.
+    ///
+    /// Only the migration contract is allowed to call migration functions. The user must
+    /// call the migration function on the migration contract to migrate.
+    ///
+    /// To migrate in to the new contract, the `ExtendRef` must be present as the `ExtendRef`
+    /// is used to generate the collection object signer.
 
-    public fun migrate_extend_ref(
+    public fun migrate_out_extend_ref(
+        migration_signer: &signer,
         collection_owner: &signer,
         collection: Object<Collection>,
     ): Option<object::ExtendRef> acquires CollectionRefs {
-        assert_owner(signer::address_of(collection_owner), collection);
-        let collection_address = collection_refs_address(collection);
+        assert_migration_object_signer(migration_signer);
 
-        let refs = borrow_global_mut<CollectionRefs>(collection_address);
+        let refs = authorized_borrow_refs_mut(collection, collection_owner);
         let extend_ref = extract_ref_if_present(&mut refs.extend_ref);
-        destroy_collection_refs_if_all_refs_migrated(refs, collection_address);
+        destroy_collection_refs_if_all_refs_migrated(refs, object::object_address(&collection));
         extend_ref
     }
 
-    public fun migrate_mutator_ref(
+    public fun migrate_out_mutator_ref(
+        migration_signer: &signer,
         collection_owner: &signer,
         collection: Object<Collection>,
     ): Option<collection::MutatorRef> acquires CollectionRefs {
-        assert_owner(signer::address_of(collection_owner), collection);
-        let collection_address = collection_refs_address(collection);
+        assert_migration_object_signer(migration_signer);
 
-        let refs = borrow_global_mut<CollectionRefs>(collection_address);
+        let refs = authorized_borrow_refs_mut(collection, collection_owner);
         let mutator_ref = extract_ref_if_present(&mut refs.mutator_ref);
-        destroy_collection_refs_if_all_refs_migrated(refs, collection_address);
+        destroy_collection_refs_if_all_refs_migrated(refs, object::object_address(&collection));
         mutator_ref
     }
 
-    public fun migrate_royalty_mutator_ref(
+    public fun migrate_out_royalty_mutator_ref(
+        migration_signer: &signer,
         collection_owner: &signer,
         collection: Object<Collection>,
     ): Option<royalty::MutatorRef> acquires CollectionRefs {
-        assert_owner(signer::address_of(collection_owner), collection);
-        let collection_address = collection_refs_address(collection);
+        assert_migration_object_signer(migration_signer);
 
-        let refs = borrow_global_mut<CollectionRefs>(collection_address);
+        let refs = authorized_borrow_refs_mut(collection, collection_owner);
         let royalty_mutator_ref = extract_ref_if_present(&mut refs.royalty_mutator_ref);
-        destroy_collection_refs_if_all_refs_migrated(refs, collection_address);
+        destroy_collection_refs_if_all_refs_migrated(refs, object::object_address(&collection));
         royalty_mutator_ref
     }
 
@@ -211,5 +233,10 @@ module minter::collection_components {
             error::not_found(ECOLLECTION_REFS_DOES_NOT_EXIST)
         );
         collection_address
+    }
+
+    fun assert_migration_object_signer(migration_signer: &signer) {
+        let migration_object_signer = migration_helper::migration_object_address();
+        assert!(signer::address_of(migration_signer) == migration_object_signer, ENOT_MIGRATION_SIGNER);
     }
 }

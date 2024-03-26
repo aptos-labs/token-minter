@@ -11,6 +11,7 @@ module minter::token_components {
     use aptos_token_objects::property_map;
     use aptos_token_objects::token;
     use aptos_token_objects::token::Token;
+    use minter::migration_helper;
 
     use minter::collection_properties;
 
@@ -28,8 +29,10 @@ module minter::token_components {
     const ETOKEN_NOT_TRANSFERABLE_BY_COLLECTION_OWNER: u64 = 6;
     /// The token does not have ExtendRef, so it is not extendable.
     const ETOKEN_NOT_EXTENDABLE: u64 = 7;
+    /// Caller not authorized to call migration functions.
+    const ENOT_MIGRATION_SIGNER: u64 = 8;
     /// This token is not owned by the address.
-    const ENOT_TOKEN_OWNER: u64 = 8;
+    const ENOT_TOKEN_OWNER: u64 = 9;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct TokenRefs has key {
@@ -74,7 +77,7 @@ module minter::token_components {
             is_transferable_by_collection_owner(token),
             error::permission_denied(ETOKEN_NOT_TRANSFERABLE_BY_COLLECTION_OWNER),
         );
-        let transfer_ref = &authorized_borrow_refs(collection_owner, token).transfer_ref;
+        let transfer_ref = &authorized_borrow_refs_mut(collection_owner, token).transfer_ref;
         assert!(option::is_some(transfer_ref), error::not_found(ETOKEN_NOT_TRANSFERABLE_BY_COLLECTION_OWNER));
 
         let linear_transfer_ref = object::generate_linear_transfer_ref(option::borrow(transfer_ref));
@@ -85,7 +88,7 @@ module minter::token_components {
         assert!(is_transferable_by_collection_owner(token), error::permission_denied(
             ETOKEN_NOT_TRANSFERABLE_BY_COLLECTION_OWNER
         ));
-        let transfer_ref = &authorized_borrow_refs(collection_owner, token).transfer_ref;
+        let transfer_ref = &authorized_borrow_refs_mut(collection_owner, token).transfer_ref;
         assert!(option::is_some(transfer_ref), error::not_found(ETOKEN_NOT_TRANSFERABLE_BY_COLLECTION_OWNER));
 
         object::disable_ungated_transfer(option::borrow(transfer_ref));
@@ -96,7 +99,7 @@ module minter::token_components {
             is_transferable_by_collection_owner(token), error::permission_denied(
                 ETOKEN_NOT_TRANSFERABLE_BY_COLLECTION_OWNER
             ));
-        let transfer_ref = &authorized_borrow_refs(collection_owner, token).transfer_ref;
+        let transfer_ref = &authorized_borrow_refs_mut(collection_owner, token).transfer_ref;
         assert!(option::is_some(transfer_ref), error::not_found(ETOKEN_NOT_TRANSFERABLE_BY_COLLECTION_OWNER));
 
         object::enable_ungated_transfer(option::borrow(transfer_ref));
@@ -108,7 +111,7 @@ module minter::token_components {
         description: String,
     ) acquires TokenRefs {
         assert!(is_mutable_description(token), error::permission_denied(EFIELD_NOT_MUTABLE));
-        let mutator_ref = &authorized_borrow_refs(collection_owner, token).mutator_ref;
+        let mutator_ref = &authorized_borrow_refs_mut(collection_owner, token).mutator_ref;
         assert!(option::is_some(mutator_ref), error::not_found(EFIELD_NOT_MUTABLE));
 
         token::set_description(option::borrow(mutator_ref), description);
@@ -116,7 +119,7 @@ module minter::token_components {
 
     public fun set_name(collection_owner: &signer, token: Object<Token>, name: String) acquires TokenRefs {
         assert!(is_mutable_name(token), error::permission_denied(EFIELD_NOT_MUTABLE));
-        let mutator_ref = &authorized_borrow_refs(collection_owner, token).mutator_ref;
+        let mutator_ref = &authorized_borrow_refs_mut(collection_owner, token).mutator_ref;
         assert!(option::is_some(mutator_ref), error::not_found(EFIELD_NOT_MUTABLE));
 
         token::set_name(option::borrow(mutator_ref), name);
@@ -124,7 +127,7 @@ module minter::token_components {
 
     public fun set_uri(collection_owner: &signer, token: Object<Token>, uri: String) acquires TokenRefs {
         assert!(is_mutable_uri(token), error::permission_denied(EFIELD_NOT_MUTABLE));
-        let mutator_ref = &authorized_borrow_refs(collection_owner, token).mutator_ref;
+        let mutator_ref = &authorized_borrow_refs_mut(collection_owner, token).mutator_ref;
         assert!(option::is_some(mutator_ref), error::not_found(EFIELD_NOT_MUTABLE));
 
         token::set_uri(option::borrow(mutator_ref), uri);
@@ -138,7 +141,7 @@ module minter::token_components {
         value: vector<u8>,
     ) acquires TokenRefs {
         assert!(are_properties_mutable(token), error::permission_denied(EPROPERTIES_NOT_MUTABLE));
-        let property_mutator_ref = &authorized_borrow_refs(collection_owner, token).property_mutator_ref;
+        let property_mutator_ref = &authorized_borrow_refs_mut(collection_owner, token).property_mutator_ref;
         assert!(option::is_some(property_mutator_ref), error::not_found(EPROPERTIES_NOT_MUTABLE));
 
         property_map::add(option::borrow(property_mutator_ref), key, type, value);
@@ -151,7 +154,7 @@ module minter::token_components {
         value: V,
     ) acquires TokenRefs {
         assert!(are_properties_mutable(token), error::permission_denied(EPROPERTIES_NOT_MUTABLE));
-        let property_mutator_ref = &authorized_borrow_refs(collection_owner, token).property_mutator_ref;
+        let property_mutator_ref = &authorized_borrow_refs_mut(collection_owner, token).property_mutator_ref;
         assert!(option::is_some(property_mutator_ref), error::not_found(EPROPERTIES_NOT_MUTABLE));
 
         property_map::add_typed(option::borrow(property_mutator_ref), key, value);
@@ -159,7 +162,7 @@ module minter::token_components {
 
     public fun remove_property(collection_owner: &signer, token: Object<Token>, key: String) acquires TokenRefs {
         assert!(are_properties_mutable(token), error::permission_denied(EPROPERTIES_NOT_MUTABLE));
-        let property_mutator_ref = &authorized_borrow_refs(collection_owner, token).property_mutator_ref;
+        let property_mutator_ref = &authorized_borrow_refs_mut(collection_owner, token).property_mutator_ref;
         assert!(option::is_some(property_mutator_ref), error::not_found(EPROPERTIES_NOT_MUTABLE));
 
         property_map::remove(option::borrow(property_mutator_ref), &key);
@@ -173,7 +176,7 @@ module minter::token_components {
         value: vector<u8>,
     ) acquires TokenRefs {
         assert!(are_properties_mutable(token), error::permission_denied(EPROPERTIES_NOT_MUTABLE));
-        let property_mutator_ref = &authorized_borrow_refs(collection_owner, token).property_mutator_ref;
+        let property_mutator_ref = &authorized_borrow_refs_mut(collection_owner, token).property_mutator_ref;
         assert!(option::is_some(property_mutator_ref), error::not_found(EPROPERTIES_NOT_MUTABLE));
 
         property_map::update(option::borrow(property_mutator_ref), &key, type, value);
@@ -186,26 +189,25 @@ module minter::token_components {
         value: V,
     ) acquires TokenRefs {
         assert!(are_properties_mutable(token), error::permission_denied(EPROPERTIES_NOT_MUTABLE));
-        let property_mutator_ref = &authorized_borrow_refs(collection_owner, token).property_mutator_ref;
+        let property_mutator_ref = &authorized_borrow_refs_mut(collection_owner, token).property_mutator_ref;
         assert!(option::is_some(property_mutator_ref), error::not_found(EPROPERTIES_NOT_MUTABLE));
 
         property_map::update_typed(option::borrow(property_mutator_ref), &key, value);
     }
 
     /// Allow borrowing the `TokenRefs` resource if the `collection_owner` owns the token's collection.
-    inline fun authorized_borrow_refs(collection_owner: &signer, token: Object<Token>): &TokenRefs {
+    inline fun authorized_borrow_refs_mut(collection_owner: &signer, token: Object<Token>): &mut TokenRefs {
         assert_token_collection_owner(signer::address_of(collection_owner), token);
-
         let token_address = object::object_address(&token);
         assert!(token_refs_exist(token_address), error::not_found(ETOKEN_REFS_DOES_NOT_EXIST));
 
-        borrow_global<TokenRefs>(token_address)
+        borrow_global_mut<TokenRefs>(token_address)
     }
 
     fun assert_token_collection_owner(collection_owner: address, token: Object<Token>) {
         let collection = token::collection_object(token);
         assert!(
-            object::owner(collection) == collection_owner || object::owns(collection, collection_owner),
+            object::owner(collection) == collection_owner,
             error::permission_denied(ENOT_TOKEN_COLLECTION_OWNER),
         );
     }
@@ -232,17 +234,10 @@ module minter::token_components {
         };
     }
 
-    fun assert_token_ownership<T: key>(owner: address, token: Object<T>) {
-        assert!(
-            object::owns(token::collection_object(token), owner),
-            error::permission_denied(ENOT_TOKEN_OWNER),
-        );
-    }
-
     #[view]
     /// Can only be called if the `collection_owner` is the owner of the collection the `token` belongs to.
     public fun token_object_signer(collection_owner: &signer, token: Object<Token>): signer acquires TokenRefs {
-        let extend_ref = &authorized_borrow_refs(collection_owner, token).extend_ref;
+        let extend_ref = &authorized_borrow_refs_mut(collection_owner, token).extend_ref;
         assert!(option::is_some(extend_ref), ETOKEN_NOT_EXTENDABLE);
 
         object::generate_signer_for_extending(option::borrow(extend_ref))
@@ -287,69 +282,75 @@ module minter::token_components {
     /// Migration function used for migrating the refs from one object to another.
     /// This is called when the contract has been upgraded to a new address and version.
     /// This function is used to migrate the refs from the old object to the new object.
+    ///
+    /// Only the migration contract is allowed to call migration functions. The user must
+    /// call the migration function on the migration contract to migrate.
+    ///
+    /// To migrate in to the new contract, the `ExtendRef` must be present as the `ExtendRef`
+    /// is used to generate the token object signer.
 
-    public fun migrate_extend_ref(
+    public fun migrate_out_extend_ref(
+        migration_signer: &signer,
         collection_owner: &signer,
         token: Object<Token>,
     ): Option<object::ExtendRef> acquires TokenRefs {
-        assert_token_collection_owner(signer::address_of(collection_owner), token);
-        let token_address = assert_token_refs_exist(token);
+        assert_migration_object_signer(migration_signer);
 
-        let refs = borrow_global_mut<TokenRefs>(token_address);
+        let refs = authorized_borrow_refs_mut(collection_owner, token);
         let extend_ref = extract_ref_if_present(&mut refs.extend_ref);
-        destroy_token_refs_if_all_refs_migrated(refs, token_address);
+        destroy_token_refs_if_all_refs_migrated(refs, object::object_address(&token));
         extend_ref
     }
 
-    public fun migrate_burn_ref(
+    public fun migrate_out_burn_ref(
+        migration_signer: &signer,
         collection_owner: &signer,
         token: Object<Token>,
     ): Option<token::BurnRef> acquires TokenRefs {
-        assert_token_collection_owner(signer::address_of(collection_owner), token);
-        let token_address = assert_token_refs_exist(token);
+        assert_migration_object_signer(migration_signer);
 
-        let refs = borrow_global_mut<TokenRefs>(token_address);
+        let refs = authorized_borrow_refs_mut(collection_owner, token);
         let burn_ref = extract_ref_if_present(&mut refs.burn_ref);
-        destroy_token_refs_if_all_refs_migrated(refs, token_address);
+        destroy_token_refs_if_all_refs_migrated(refs, object::object_address(&token));
         burn_ref
     }
 
-    public fun migrate_transfer_ref(
+    public fun migrate_out_transfer_ref(
+        migration_signer: &signer,
         collection_owner: &signer,
         token: Object<Token>,
     ): Option<object::TransferRef> acquires TokenRefs {
-        assert_token_collection_owner(signer::address_of(collection_owner), token);
-        let token_address = assert_token_refs_exist(token);
+        assert_migration_object_signer(migration_signer);
 
-        let refs = borrow_global_mut<TokenRefs>(token_address);
+        let refs = authorized_borrow_refs_mut(collection_owner, token);
         let transfer_ref = extract_ref_if_present(&mut refs.transfer_ref);
-        destroy_token_refs_if_all_refs_migrated(refs, token_address);
+        destroy_token_refs_if_all_refs_migrated(refs, object::object_address(&token));
         transfer_ref
     }
 
-    public fun migrate_mutator_ref(
+    public fun migrate_out_mutator_ref(
+        migration_signer: &signer,
         collection_owner: &signer,
         token: Object<Token>,
     ): Option<token::MutatorRef> acquires TokenRefs {
-        assert_token_collection_owner(signer::address_of(collection_owner), token);
-        let token_address = assert_token_refs_exist(token);
+        assert_migration_object_signer(migration_signer);
 
-        let refs = borrow_global_mut<TokenRefs>(token_address);
+        let refs = authorized_borrow_refs_mut(collection_owner, token);
         let mutator_ref = extract_ref_if_present(&mut refs.mutator_ref);
-        destroy_token_refs_if_all_refs_migrated(refs, token_address);
+        destroy_token_refs_if_all_refs_migrated(refs, object::object_address(&token));
         mutator_ref
     }
 
-    public fun migrate_property_mutator_ref(
+    public fun migrate_out_property_mutator_ref(
+        migration_signer: &signer,
         collection_owner: &signer,
         token: Object<Token>,
     ): Option<property_map::MutatorRef> acquires TokenRefs {
-        assert_token_collection_owner(signer::address_of(collection_owner), token);
-        let token_address = assert_token_refs_exist(token);
+        assert_migration_object_signer(migration_signer);
 
-        let refs = borrow_global_mut<TokenRefs>(token_address);
+        let refs = authorized_borrow_refs_mut(collection_owner, token);
         let property_mutator_ref = extract_ref_if_present(&mut refs.property_mutator_ref);
-        destroy_token_refs_if_all_refs_migrated(refs, token_address);
+        destroy_token_refs_if_all_refs_migrated(refs, object::object_address(&token));
         property_mutator_ref
     }
 
@@ -361,7 +362,10 @@ module minter::token_components {
         }
     }
 
-    inline fun destroy_token_refs_if_all_refs_migrated(token_refs: &mut TokenRefs, token_address: address) acquires TokenRefs {
+    inline fun destroy_token_refs_if_all_refs_migrated(
+        token_refs: &mut TokenRefs,
+        token_address: address
+    ) acquires TokenRefs {
         if (option::is_none(&token_refs.extend_ref)
             && option::is_none(&token_refs.burn_ref)
             && option::is_none(&token_refs.transfer_ref)
@@ -384,5 +388,10 @@ module minter::token_components {
             error::not_found(ETOKEN_REFS_DOES_NOT_EXIST)
         );
         token_address
+    }
+
+    fun assert_migration_object_signer(migration_signer: &signer) {
+        let migration_object_signer = migration_helper::migration_object_address();
+        assert!(signer::address_of(migration_signer) == migration_object_signer, ENOT_MIGRATION_SIGNER);
     }
 }
