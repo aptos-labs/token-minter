@@ -11,8 +11,6 @@ launchpad_admin = "_"
 launchpad = "0x123"
 minter = "0xb04204ddbcf130b6d1accfdd2e9593275cb6d4777d70ebd41a4799c007c55a2b"
 launchpad_admin = "0x678"
-minter_v2 = "0x456"
-migration = "0x789"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"

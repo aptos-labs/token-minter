@@ -1,3 +1,4 @@
+#[test_only]
 module minter_v2::collection_properties_v2 {
 
     use std::error;
