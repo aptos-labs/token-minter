@@ -44,33 +44,28 @@ module ez_launch::ez_launch {
     
     /// The provided signer is not the collection owner during pre-minting.
     const ENOT_OWNER: u64 = 1;
-    /// The provided collection does not have a CollectionDetails resource. Are you sure this Collection was created with ez_launch?
-    const ECOLLECTION_DETAILS_DOES_NOT_EXIST: u64 = 2;
+    /// The provided collection does not have a EZLaunchConfig resource. Are you sure this Collection was created with ez_launch?
+    const EEZ_LAUNCH_CONFIG_DOES_NOT_EXIST: u64 = 2;
     /// CollectionProperties resource does not exist in the object address.
     const ECOLLECTION_PROPERTIES_DOES_NOT_EXIST: u64 = 3;
-    /// The provided collection does not have a EZLaunchRefs resource. Are you sure this Collection was created with ez_launch?
-    const EEZ_LAUNCH_REFS_DOES_NOT_EXIST: u64 = 4;
     /// Royalty configuration is invalid because either numerator and denominator should be none or not none.
-    const EROYALTY_CONFIGURATION_INVALID: u64 = 5;
+    const EROYALTY_CONFIGURATION_INVALID: u64 = 4;
     /// Token Metadata configuration is invalid with different metadata length.
-    const ETOKEN_METADATA_CONFIGURATION_INVALID: u64 = 6;
+    const ETOKEN_METADATA_CONFIGURATION_INVALID: u64 = 5;
     /// Token Minting has not yet started.
-    const EMINTING_HAS_NOT_STARTED_YET: u64 = 7;
+    const EMINTING_HAS_NOT_STARTED_YET: u64 = 6;
     /// Tokens are all minted.
-    const ETOKENS_ALL_MINTED: u64 = 8;
+    const ETOKENS_ALL_MINTED: u64 = 7;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
-    struct CollectionDetails has key {
+    struct EZLaunchConfig has key {
+        extend_ref: object::ExtendRef, // creator owned object extend ref
+        collection: Object<Collection>,
         coin_payments: vector<CoinPayment<AptosCoin>>,
         available_tokens: vector<Object<Token>>, // to be minted token
         random_mint: bool,
         is_soulbound: bool,
         ready_to_mint: bool,
-    }
-
-    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
-    struct EZLaunchRefs has key {
-        extend_ref: object::ExtendRef,
     }
 
     // ================================= Entry Functions ================================= //
@@ -90,8 +85,8 @@ module ez_launch::ez_launch {
         mint_fee: Option<u64>,
         royalty_numerator: Option<u64>,
         royalty_denominator: Option<u64>,
-    ) acquires CollectionDetails {
-        create_collection_helper(
+    ) acquires EZLaunchConfig {
+        create_collection_impl(
             creator,
             description,
             name,
@@ -111,15 +106,15 @@ module ez_launch::ez_launch {
 
     public entry fun pre_mint_tokens(
         creator: &signer,
-        collection: Object<Collection>,
+        ez_launch_config_obj: Object<EZLaunchConfig>,
         token_name_vec: vector<String>, // not provided by creator, we could parse from metadata json file
         token_uri_vec: vector<String>, // not provided by creator, we could parse from metadata json file
         token_description_vec: vector<String>, // not provided by creator, we could parse from metadata json file
         num_tokens: u64,
-    ) acquires CollectionDetails, EZLaunchRefs {
-        pre_mint_tokens_helper(
+    ) acquires EZLaunchConfig {
+        pre_mint_tokens_impl(
             creator,
-            collection,
+            ez_launch_config_obj,
             token_name_vec,
             token_uri_vec,
             token_description_vec,
@@ -129,23 +124,20 @@ module ez_launch::ez_launch {
 
     public entry fun mint(
         user: &signer,
-        collection: Object<Collection>,
-    ) acquires CollectionDetails, EZLaunchRefs {
-        mint_helper(user, collection);
+        ez_launch_config_obj: Object<EZLaunchConfig>,
+    ) acquires EZLaunchConfig {
+        mint_impl(user, ez_launch_config_obj);
     }
 
-    public entry fun set_minting_status(creator: &signer, collection: Object<Collection>, ready_to_mint: bool) acquires CollectionDetails, EZLaunchRefs {
-        assert_owner(signer::address_of(creator), collection);
-        let object_signer = authorized_collection_signer(creator, collection);
-        let object_signer_address = signer::address_of(&object_signer);
-        let collection_details_obj = borrow_global_mut<CollectionDetails>(object_signer_address);
+    public entry fun set_minting_status(config_owner: &signer, ez_launch_config_obj: Object<EZLaunchConfig>, ready_to_mint: bool) acquires EZLaunchConfig {
+        let ez_launch_config = authorized_borrow_mut(config_owner, ez_launch_config_obj);
 
-        collection_details_obj.ready_to_mint = ready_to_mint;
+        ez_launch_config.ready_to_mint = ready_to_mint;
     }
 
     // ================================= Helper  ================================= //
 
-    public fun create_collection_helper(
+    public fun create_collection_impl(
         creator: &signer,
         description: String,
         name: String,
@@ -160,14 +152,16 @@ module ez_launch::ez_launch {
         mint_fee: Option<u64>,
         royalty_numerator: Option<u64>,
         royalty_denominator: Option<u64>,
-    ): Object<Collection> acquires CollectionDetails {
+    ): Object<EZLaunchConfig> acquires EZLaunchConfig {
         let creator_addr = signer::address_of(creator);
+        let object_constructor_ref = &object::create_object(creator_addr);
+        let object_signer = object::generate_signer(object_constructor_ref);
 
         let royalty = royalty(&mut royalty_numerator, &mut royalty_denominator, creator_addr);
 
         let constructor_ref = if (option::is_some(&max_supply)) {
             collection::create_fixed_collection(
-                creator,
+                &object_signer,
                 description,
                 option::extract(&mut max_supply),
                 name,
@@ -176,7 +170,7 @@ module ez_launch::ez_launch {
             )
         } else {
             collection::create_unlimited_collection(
-                creator,
+                &object_signer,
                 description,
                 name,
                 royalty,
@@ -187,7 +181,7 @@ module ez_launch::ez_launch {
         collection_components::create_refs_and_properties(&constructor_ref);
         let collection = object::object_from_constructor_ref(&constructor_ref);
         configure_collection_and_token_properties(
-            creator,
+            &object_signer,
             collection,
             mutable_collection_metadata,
             mutable_token_metadata,
@@ -195,9 +189,9 @@ module ez_launch::ez_launch {
             tokens_transferrable_by_collection_owner,
         );
 
-        let object_signer = object::generate_signer(&constructor_ref);
-
-        move_to(&object_signer, CollectionDetails {
+        move_to(&object_signer, EZLaunchConfig {
+            extend_ref: object::generate_extend_ref(object_constructor_ref),
+            collection,
             available_tokens: vector[],
             coin_payments: vector[],
             random_mint,
@@ -206,34 +200,26 @@ module ez_launch::ez_launch {
         });
 
         let object_addr = signer::address_of(&object_signer);
-        let collection_details = borrow_global_mut<CollectionDetails>(object_addr);
+        let ez_launch_config_obj = object::address_to_object(object_addr);
         
-        add_mint_fee(&mut mint_fee, creator_addr, collection_details);
+        add_mint_fee(&mut mint_fee, creator_addr, ez_launch_config_obj);
 
         // (jill) add whitelist
 
-        move_to(&object_signer, EZLaunchRefs {
-            extend_ref: object::generate_extend_ref(&constructor_ref),
-        });
-
-        collection
+        ez_launch_config_obj
     }
 
-    public fun pre_mint_tokens_helper(
+    public fun pre_mint_tokens_impl(
         creator: &signer,
-        collection: Object<Collection>,
+        ez_launch_config_obj: Object<EZLaunchConfig>,
         token_name_vec: vector<String>,
         token_uri_vec: vector<String>,
         token_description_vec: vector<String>,
         num_tokens: u64,
-    ) acquires CollectionDetails, EZLaunchRefs {
+    ) acquires EZLaunchConfig {
         assert!(vector::length(&token_name_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
         assert!(vector::length(&token_uri_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
         assert!(vector::length(&token_description_vec) == num_tokens, error::invalid_argument(ETOKEN_METADATA_CONFIGURATION_INVALID));
-
-        let object_signer = authorized_collection_signer(creator, collection);
-        let object_signer_address = signer::address_of(&object_signer);
-        let collection_details_obj = borrow_global_mut<CollectionDetails>(object_signer_address);
         // not check against the ready_to_mint so that we enable creators to pre_mint anytime even when minting has already started
 
         let i = 0;
@@ -241,26 +227,28 @@ module ez_launch::ez_launch {
         while (i < length) {
             let token = pre_mint_token(
                 creator,
-                collection,
+                ez_launch_config_obj,
                 *vector::borrow(&token_description_vec, i),
                 *vector::borrow(&token_name_vec, i),
                 *vector::borrow(&token_uri_vec, i),
             );
-            vector::push_back(&mut collection_details_obj.available_tokens, token);
+            vector::push_back(&mut borrow_mut(ez_launch_config_obj).available_tokens, token);
             i = i + 1;
         };
     }
 
     public fun pre_mint_token(
         creator: &signer,
-        collection: Object<Collection>,
+        ez_launch_config_obj: Object<EZLaunchConfig>,
         description: String,
         name: String,
         uri: String,
-    ): Object<Token> {
-        assert_owner(signer::address_of(creator), collection);
+    ): Object<Token> acquires EZLaunchConfig {
+        let object_signer = authorized_ez_launch_config_signer(creator, ez_launch_config_obj);
+        let collection = collection(ez_launch_config_obj);
+
         let constructor_ref = &token::create(
-            creator,
+            &object_signer,
             collection::name(collection),
             description,
             name,
@@ -269,42 +257,43 @@ module ez_launch::ez_launch {
         );
 
         token_components::create_refs(constructor_ref);
-        let collection_address = object::object_address(&collection);
-        transfer_token::transfer(creator, collection_address, constructor_ref);
+        let ez_launch_config_address = object::object_address(&ez_launch_config_obj);
+        transfer_token::transfer(&object_signer, ez_launch_config_address, constructor_ref);
 
         object::object_from_constructor_ref(constructor_ref)
     }
     
-    public fun mint_helper(
+    public fun mint_impl(
         user: &signer,
-        collection: Object<Collection>,
-    ): Object<Token> acquires CollectionDetails, EZLaunchRefs {
-        let object_signer = collection_signer(collection);
-        let object_signer_address = signer::address_of(&object_signer);
-        assert!(exists<CollectionDetails>(object_signer_address), error::invalid_state(ECOLLECTION_DETAILS_DOES_NOT_EXIST));
+        ez_launch_config_obj: Object<EZLaunchConfig>,
+    ): Object<Token> acquires EZLaunchConfig {
+        let object_signer = ez_launch_config_signer(ez_launch_config_obj);
+        let borrowed_ez_launch_config = borrow(ez_launch_config_obj);
 
-        let collection_details_obj = borrow_global_mut<CollectionDetails>(object_signer_address);
-        let available_tokens = collection_details_obj.available_tokens;
+        let available_tokens = borrowed_ez_launch_config.available_tokens;
         let length = vector::length(&available_tokens);
 
         assert!(length > 0, error::permission_denied(ETOKENS_ALL_MINTED));
-        assert!(collection_details_obj.ready_to_mint, error::permission_denied(EMINTING_HAS_NOT_STARTED_YET));
+        assert!(borrowed_ez_launch_config.ready_to_mint, error::permission_denied(EMINTING_HAS_NOT_STARTED_YET));
 
         // (jill) check against whitelist
 
-        execute_coin_payments(user, collection_details_obj);
+        execute_coin_payments(user, ez_launch_config_obj);
+        let borrowed_ez_launch_config = borrow(ez_launch_config_obj);
 
-        let token_index = if (collection_details_obj.random_mint) {
+        let token_index = if (borrowed_ez_launch_config.random_mint) {
             timestamp::now_seconds() % length
         } else {
             length - 1
         };
+
+
         let token = *vector::borrow(&available_tokens, token_index);
         let user_address = signer::address_of(user);
         object::transfer(&object_signer, token, user_address);
         vector::pop_back(&mut available_tokens);
 
-        if (collection_details_obj.is_soulbound) {
+        if (borrowed_ez_launch_config.is_soulbound) {
             token_components::freeze_transfer(&object_signer, token);
         };
 
@@ -315,21 +304,22 @@ module ez_launch::ez_launch {
         assert!(object::owner(object) == owner, error::permission_denied(ENOT_OWNER));
     }
 
-    fun authorized_collection_signer(creator: &signer, collection: Object<Collection>): signer acquires EZLaunchRefs {
-        let refs = authorized_borrow(creator, collection);
-        object::generate_signer_for_extending(&refs.extend_ref)
+    fun authorized_ez_launch_config_signer(config_owner: &signer, ez_launch_config_obj: Object<EZLaunchConfig>): signer acquires EZLaunchConfig {
+        let ez_launch_config = authorized_borrow(config_owner, ez_launch_config_obj);
+        object::generate_signer_for_extending(&ez_launch_config.extend_ref)
     }
 
-    fun collection_signer(collection: Object<Collection>): signer acquires EZLaunchRefs {
-        let refs = borrow(collection);
-        object::generate_signer_for_extending(&refs.extend_ref)
+    fun ez_launch_config_signer(ez_launch_config_obj: Object<EZLaunchConfig>): signer acquires EZLaunchConfig {
+        let ez_launch_config = borrow(ez_launch_config_obj);
+        object::generate_signer_for_extending(&ez_launch_config.extend_ref)
     }
 
     fun add_mint_fee(
         mint_fee: &mut Option<u64>,
         creator_addr: address,
-        collection_details: &mut CollectionDetails,
-    ) {
+        ez_launch_config_obj: Object<EZLaunchConfig>,
+    ) acquires EZLaunchConfig {
+        let ez_launch_config = borrow_mut(ez_launch_config_obj);
         if (option::is_some(mint_fee)) {
             let mint_fee_category = b"Mint Fee";
             let coin_payment = coin_payment::create<AptosCoin>(
@@ -337,15 +327,16 @@ module ez_launch::ez_launch {
                 creator_addr,
                 string::utf8(mint_fee_category),
             );
-            vector::push_back(&mut collection_details.coin_payments, coin_payment);
+            vector::push_back(&mut ez_launch_config.coin_payments, coin_payment);
         };
     }
 
     fun execute_coin_payments(
         user: &signer,
-        collection_details: &mut CollectionDetails,
-    ) {
-        vector::for_each_ref(&collection_details.coin_payments, |coin_payment| {
+        ez_launch_config_obj: Object<EZLaunchConfig>,
+    ) acquires EZLaunchConfig {
+        let ez_launch_config = borrow_mut(ez_launch_config_obj);
+        vector::for_each_ref(&ez_launch_config.coin_payments, |coin_payment| {
             let coin_payment: &CoinPayment<AptosCoin> = coin_payment;
             coin_payment::execute(user, coin_payment);
         });
@@ -383,29 +374,49 @@ module ez_launch::ez_launch {
         collection_properties::set_tokens_burnable_by_collection_owner(creator, collection, tokens_burnable_by_collection_owner);
     }
 
-    inline fun authorized_borrow(creator: &signer, collection: Object<Collection>): &EZLaunchRefs acquires EZLaunchRefs {
-        assert_owner(signer::address_of(creator), collection);
-        borrow(collection)
+    fun collection(ez_launch_config_obj: Object<EZLaunchConfig>): Object<Collection> acquires EZLaunchConfig {
+        borrow(ez_launch_config_obj).collection
     }
 
-    inline fun borrow(collection: Object<Collection>): &EZLaunchRefs acquires EZLaunchRefs {
-        let collection_address = object::object_address(&collection);
+    inline fun authorized_borrow(config_owner: &signer, ez_launch_config_obj: Object<EZLaunchConfig>): &EZLaunchConfig {
+        assert_owner(signer::address_of(config_owner), ez_launch_config_obj);
+        borrow(ez_launch_config_obj)
+    }
+
+    inline fun authorized_borrow_mut(config_owner: &signer, ez_launch_config_obj: Object<EZLaunchConfig>): &mut EZLaunchConfig {
+        assert_owner(signer::address_of(config_owner), ez_launch_config_obj);
+        borrow_mut(ez_launch_config_obj)
+    }
+
+    inline fun borrow(ez_launch_config_obj: Object<EZLaunchConfig>): &EZLaunchConfig {
+        let ez_launch_config_obj_address = object::object_address(&ez_launch_config_obj);
         assert!(
-            exists<EZLaunchRefs>(collection_address),
-            error::not_found(EEZ_LAUNCH_REFS_DOES_NOT_EXIST)
+            exists<EZLaunchConfig>(ez_launch_config_obj_address),
+            error::not_found(EEZ_LAUNCH_CONFIG_DOES_NOT_EXIST)
         );
 
-        borrow_global<EZLaunchRefs>(collection_address)
+        borrow_global<EZLaunchConfig>(ez_launch_config_obj_address)
+    }
+
+    inline fun borrow_mut(ez_launch_config_obj: Object<EZLaunchConfig>): &mut EZLaunchConfig acquires EZLaunchConfig {
+        let ez_launch_config_obj_address = object::object_address(&ez_launch_config_obj);
+        assert!(
+            exists<EZLaunchConfig>(ez_launch_config_obj_address),
+            error::not_found(EEZ_LAUNCH_CONFIG_DOES_NOT_EXIST)
+        );
+
+        borrow_global_mut<EZLaunchConfig>(ez_launch_config_obj_address)
     }
            
     // ================================= View  ================================= //
 
     #[view]
-    public fun minting_ended(collection: Object<Collection>): bool acquires CollectionDetails, EZLaunchRefs {
-        let object_signer = collection_signer(collection);
-        let object_signer_address = signer::address_of(&object_signer);
-        let collection_details_obj = borrow_global_mut<CollectionDetails>(object_signer_address);
+    public fun minting_ended(ez_launch_config_obj: Object<EZLaunchConfig>): bool acquires EZLaunchConfig {
+        vector::length(&borrow(ez_launch_config_obj).available_tokens) == 0
+    }
 
-        vector::length(&collection_details_obj.available_tokens) == 0
+    #[view]
+    public fun authorized_collection(config_owner: &signer, ez_launch_config_obj: Object<EZLaunchConfig>): Object<Collection> acquires EZLaunchConfig {
+        authorized_borrow(config_owner, ez_launch_config_obj).collection
     }
 }
