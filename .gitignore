@@ -10,7 +10,7 @@
 # move config
 .aptos
 
-# ezlaunch
+# ez-launch
 node_modules/
 examples/
 

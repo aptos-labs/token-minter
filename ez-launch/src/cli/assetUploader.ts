@@ -1,4 +1,4 @@
-import * as fs from "fs";
+import * as fs from 'fs';
 import * as path from "path";
 import { Account, Aptos, AptosConfig, AssetUploader, Network } from "@aptos-labs/ts-sdk";
 
@@ -133,8 +133,8 @@ const updateURIsInFolder = (
   });
 };
 
-const isDirectory = (filePath: string) => {
-  return fs.existsSync(filePath) && fs.statSync(filePath).isDirectory();
+const isDirectory = (filePath: string): boolean => {
+  return fs.statSync(filePath).isDirectory();
 };
 
 const isValidImageExtension = (filePath: string) => {
