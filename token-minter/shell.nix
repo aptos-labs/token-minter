@@ -15,7 +15,7 @@ pkgs.mkShell {
       nodemon \
         --ignore build/* \
         --ext move \
-        --exec "aptos move test --dev --skip-fetch-latest-git-deps;"
+        --exec "aptos move test --dev --named-addresses migration="0x111" --skip-fetch-latest-git-deps;"
     }
 
     pub() {
