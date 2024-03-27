@@ -1,3 +1,4 @@
+#[test_only]
 /// This module is an example of the v2 contract upgrade for `token_components.move`.
 module minter_v2::token_components_v2 {
 

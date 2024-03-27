@@ -9,8 +9,6 @@ airdrop_machine = "_"
 [dev-addresses]
 airdrop_machine = "0x123"
 minter = "0x456"
-minter_v2 = "0x457"
-migration = "0x789"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"

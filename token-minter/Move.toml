@@ -5,13 +5,13 @@ authors = []
 
 [addresses]
 minter = "_"
-minter_v2 = "_"
-migration = "_"
+migration = "0x111" # Will replace when we have an address responsible for migrations.
+# Mock addresses for testing.
+minter_v2 = "0x999"
 
 [dev-addresses]
 minter = "0x123"
-minter_v2 = "0x456"
-migration = "0x789"
+migration = "0x111"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"

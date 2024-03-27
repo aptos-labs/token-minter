@@ -9,8 +9,6 @@ migration = "_"
 
 [dev-addresses]
 minter = "0x123"
-minter_v2 = "0x456"
-migration = "0x789"
 
 [dependencies.TokenMinter]
 local = "../token-minter"

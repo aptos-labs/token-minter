@@ -1,3 +1,4 @@
+#[test_only]
 /// This module is an example of the v2 contract upgrade for `collection_components.move`.
 module minter_v2::collection_components_v2 {
 
