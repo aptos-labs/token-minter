@@ -2,7 +2,96 @@ import * as fs from 'fs';
 import * as path from "path";
 import { Account, Aptos, AptosConfig, AssetUploader, Network } from "@aptos-labs/ts-sdk";
 
-const VALID_MEDIA_EXTENSIONS = ["png", "jpg", "jpeg"];
+const VALID_MEDIA_EXTENSIONS = ["png", "jpg", "jpeg", "gltf"];
+
+
+export const uploadCollectionAssets = async (
+  collectionMediaPath: string,
+  collectionMetadataJsonPath: string,
+  account: Account,
+  fundAmount: number,
+  network: Network,
+): Promise<string> => {
+  const aptosConfig = new AptosConfig({network});
+  const assetUploader = await AssetUploader.init(aptosConfig);
+  const aptos = new Aptos(aptosConfig);
+  const amount = await aptos.getAccountAPTAmount({
+    accountAddress: account.accountAddress,
+  });
+  if (amount < fundAmount) {
+    throw new Error("Account does not have enough funds.");
+  }
+  await assetUploader.fundNode({ account, amount: fundAmount });
+
+  if (!isValidImageExtension(collectionMediaPath)) {
+    throw new Error(
+      `NFT media does not have a valid extension. It should be one of: ${VALID_MEDIA_EXTENSIONS.join(", ")}.`,
+    );
+  }
+
+  // Upload collection media and update JSON
+  const collectionMediaURI = await uploadAndRetrieveUri(
+    assetUploader,
+    account,
+    collectionMediaPath,
+  );
+  updateImageField(collectionMetadataJsonPath, collectionMediaURI);
+
+  // Upload updated collection metadata JSON and get its URI
+  const collectionMetadataJsonURI = await uploadAndRetrieveUri(
+    assetUploader,
+    account,
+    collectionMetadataJsonPath,
+  );
+
+  return collectionMetadataJsonURI;
+};
+
+export const uploadTokenAssets = async (
+  tokenMediaFolderPath: string,
+  tokenMetadataJsonFolderPath: string,
+  account: Account,
+  fundAmount: number,
+  network: Network,
+): Promise<string> => {
+  const aptosConfig = new AptosConfig({network});
+  const assetUploader = await AssetUploader.init(aptosConfig);
+  const aptos = new Aptos(aptosConfig);
+  const amount = await aptos.getAccountAPTAmount({
+    accountAddress: account.accountAddress,
+  });
+  if (amount < fundAmount) {
+    throw new Error("Account does not have enough funds.");
+  }
+  await assetUploader.fundNode({ account, amount: fundAmount });
+
+  if (!isValidImageExtension(tokenMediaFolderPath)) {
+    throw new Error(
+      `NFT media does not have a valid extension. It should be one of: ${VALID_MEDIA_EXTENSIONS.join(", ")}.`,
+    );
+  }
+
+  // Upload token media folder and update metadata JSONs with media URLs
+  const tokenMediaFolderURI = await uploadAndRetrieveUri(
+    assetUploader,
+    account,
+    tokenMediaFolderPath,
+  );
+  updateURIsInFolder(
+    tokenMetadataJsonFolderPath,
+    tokenMediaFolderURI,
+    getFileExtension(tokenMediaFolderPath),
+  );
+
+  // Upload the updated token metadata JSON folder and get its URI
+  const tokenMetadataJsonFolderURI = await uploadAndRetrieveUri(
+    assetUploader,
+    account,
+    tokenMetadataJsonFolderPath,
+  );
+
+  return tokenMetadataJsonFolderURI;
+};
 
 export const uploadCollectionAndTokenAssets = async (
   collectionMediaPath: string,

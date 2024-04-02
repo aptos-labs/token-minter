@@ -5,7 +5,6 @@ authors = []
 
 [addresses]
 ez_launch = "_"
-minter="0x186be62b3c3e54fa01fcc4d1e147372ab24cf6dd4ec09bbf6d570f094f7f94fe"
 
 [dev-addresses]
 ez_launch = "0x123"
