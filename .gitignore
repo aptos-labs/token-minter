@@ -9,3 +9,9 @@
 
 # move config
 .aptos
+
+# ez-launch
+node_modules/
+examples/
+
+.env
