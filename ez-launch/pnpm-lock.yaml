@@ -1,4 +1,4 @@
-lockfileVersion: '6.1'
+lockfileVersion: '6.0'
 
 settings:
   autoInstallPeers: true
@@ -27,8 +27,8 @@ dependencies:
     specifier: ^16.4.5
     version: 16.4.5
   express:
-    specifier: ^4.19.1
-    version: 4.19.1
+    specifier: ^4.19.2
+    version: 4.19.2
   express-validator:
     specifier: ^7.0.1
     version: 7.0.1
@@ -46,7 +46,7 @@ dependencies:
     version: 2.4.2
   swagger-ui-express:
     specifier: ^5.0.0
-    version: 5.0.0(express@4.19.1)
+    version: 5.0.0(express@4.19.2)
   typescript:
     specifier: ^5.4.3
     version: 5.4.3
@@ -1220,6 +1220,7 @@ packages:
 
   /@randlabs/communication-bridge@1.0.1:
     resolution: {integrity: sha512-CzS0U8IFfXNK7QaJFE4pjbxDGfPjbXBEsEaCn9FN15F+ouSAEUQkva3Gl66hrkBZOGexKFEWMwUHIDKpZ2hfVg==}
+    requiresBuild: true
     optional: true
 
   /@randlabs/myalgo-connect@1.4.2:
@@ -2576,6 +2577,7 @@ packages:
 
   /exponential-backoff@3.1.1:
     resolution: {integrity: sha512-dX7e/LHVJ6W3DE1MHWi9S1EYzDESENfLrYohG2G++ovZrYOkm4Knwa0mc1cn84xJOR4KEU0WSchhLbd0UklbHw==}
+    requiresBuild: true
     optional: true
 
   /express-validator@7.0.1:
@@ -2586,8 +2588,8 @@ packages:
       validator: 13.11.0
     dev: false
 
-  /express@4.19.1:
-    resolution: {integrity: sha512-K4w1/Bp7y8iSiVObmCrtq8Cs79XjJc/RU2YYkZQ7wpUu5ZyZ7MtPHkqoMz4pf+mgXfNvo2qft8D9OnrH2ABk9w==}
+  /express@4.19.2:
+    resolution: {integrity: sha512-5T6nhjsT+EOMzuck8JjBHARTHfMht0POzlA60WV2pMD3gyXw2LZnZ+ueGdNxG+0calOJcWKbpFcuzLZ91YWq9Q==}
     engines: {node: '>= 0.10.0'}
     dependencies:
       accepts: 1.3.8
@@ -4713,6 +4715,7 @@ packages:
 
   /string_decoder@1.3.0:
     resolution: {integrity: sha512-hkRX8U1WjJFd8LsDJ2yQ/wWWxaopEsABU1XfkM8A+j0+85JAGppt16cr1Whg6KIbb4okU6Mql6BOj+uup/wKeA==}
+    requiresBuild: true
     dependencies:
       safe-buffer: 5.2.1
 
@@ -4791,13 +4794,13 @@ packages:
     resolution: {integrity: sha512-uaWhh6j18IIs5tOX0arvIBnVINAzpTXaQXkr7qAk8zoupegJVg0UU/5+S/FgsgVCnzVsJ9d7QLjIxkswEeTg0Q==}
     dev: false
 
-  /swagger-ui-express@5.0.0(express@4.19.1):
+  /swagger-ui-express@5.0.0(express@4.19.2):
     resolution: {integrity: sha512-tsU9tODVvhyfkNSvf03E6FAk+z+5cU3lXAzMy6Pv4av2Gt2xA0++fogwC4qo19XuFf6hdxevPuVCSKFuMHJhFA==}
     engines: {node: '>= v0.10.32'}
     peerDependencies:
       express: '>=4.0.0 || >=5.0.0-beta'
     dependencies:
-      express: 4.19.1
+      express: 4.19.2
       swagger-ui-dist: 5.13.0
     dev: false
 
@@ -4832,6 +4835,7 @@ packages:
   /tmp@0.2.3:
     resolution: {integrity: sha512-nZD7m9iCPC5g0pYmcaxogYKggSfLsdxl8of3Q/oIbqCqLLIO9IAF0GWjX1z9NZRHPiXv8Wex4yDCaZsgEw0Y8w==}
     engines: {node: '>=14.14'}
+    requiresBuild: true
     optional: true
 
   /tmpl@1.0.5:
@@ -5031,6 +5035,7 @@ packages:
 
   /util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+    requiresBuild: true
 
   /utils-merge@1.0.1:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
