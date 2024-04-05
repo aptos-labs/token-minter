@@ -1,9 +1,14 @@
-import * as fs from 'fs';
+import * as fs from "fs";
 import * as path from "path";
-import { Account, Aptos, AptosConfig, AssetUploader, Network } from "@aptos-labs/ts-sdk";
+import {
+  Account,
+  Aptos,
+  AptosConfig,
+  AssetUploader,
+  Network,
+} from "@aptos-labs/ts-sdk";
 
 const VALID_MEDIA_EXTENSIONS = ["png", "jpg", "jpeg", "gltf"];
-
 
 export const uploadCollectionAssets = async (
   collectionMediaPath: string,
@@ -12,7 +17,7 @@ export const uploadCollectionAssets = async (
   fundAmount: number,
   network: Network,
 ): Promise<string> => {
-  const aptosConfig = new AptosConfig({network});
+  const aptosConfig = new AptosConfig({ network });
   const assetUploader = await AssetUploader.init(aptosConfig);
   const aptos = new Aptos(aptosConfig);
   const amount = await aptos.getAccountAPTAmount({
@@ -54,7 +59,7 @@ export const uploadTokenAssets = async (
   fundAmount: number,
   network: Network,
 ): Promise<string> => {
-  const aptosConfig = new AptosConfig({network});
+  const aptosConfig = new AptosConfig({ network });
   const assetUploader = await AssetUploader.init(aptosConfig);
   const aptos = new Aptos(aptosConfig);
   const amount = await aptos.getAccountAPTAmount({
@@ -105,7 +110,7 @@ export const uploadCollectionAndTokenAssets = async (
   collectionMetadataJsonURI: string;
   tokenMetadataJsonFolderURI: string;
 }> => {
-  const aptosConfig = new AptosConfig({network});
+  const aptosConfig = new AptosConfig({ network });
   const assetUploader = await AssetUploader.init(aptosConfig);
   const aptos = new Aptos(aptosConfig);
   const amount = await aptos.getAccountAPTAmount({
