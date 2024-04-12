@@ -19,8 +19,6 @@ module minter_v2::collection_properties_v2 {
     const ECOLLECTION_PROPERTY_ALREADY_INITIALIZED: u64 = 3;
     /// Collection properties already exists on this object.
     const ECOLLECTION_PROPERTIES_ALREADY_EXISTS: u64 = 4;
-    /// Caller not authorized to call migration functions.
-    const ENOT_MIGRATION_SIGNER: u64 = 5;
 
     struct CollectionProperty has copy, drop, store {
         value: bool,
@@ -232,7 +230,7 @@ module minter_v2::collection_properties_v2 {
         borrow_global_mut<CollectionProperties>(object::object_address(&obj))
     }
 
-    fun assert_owner<T: key>(collection_owner: address, obj: Object<T>) {
+    inline fun assert_owner<T: key>(collection_owner: address, obj: Object<T>) {
         assert!(
             object::owner(obj) == collection_owner,
             error::permission_denied(ENOT_OBJECT_OWNER),
@@ -351,8 +349,7 @@ module minter_v2::collection_properties_v2 {
         tokens_burnable_by_collection_owner: CollectionProperty,
         tokens_transferable_by_collection_owner: CollectionProperty,
     ) {
-        let migration_object_signer = migration_helper::migration_object_address();
-        assert!(signer::address_of(migration_signer) == migration_object_signer, ENOT_MIGRATION_SIGNER);
+        migration_helper::assert_migration_object_signer(migration_signer);
 
         assert_owner(signer::address_of(collection_owner), collection);
         assert!(
@@ -380,8 +377,7 @@ module minter_v2::collection_properties_v2 {
         collection_owner: &signer,
         obj: Object<T>,
     ): CollectionProperties acquires CollectionProperties {
-        let migration_object_signer = migration_helper::migration_object_address();
-        assert!(signer::address_of(migration_signer) == migration_object_signer, ENOT_MIGRATION_SIGNER);
+        migration_helper::assert_migration_object_signer(migration_signer);
 
         let properties = *authorized_borrow_mut(collection_owner, obj);
 

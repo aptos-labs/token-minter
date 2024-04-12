@@ -14,8 +14,6 @@ module minter::collection_properties {
     const ENOT_OBJECT_OWNER: u64 = 2;
     /// The collection property is already initialized.
     const ECOLLECTION_PROPERTY_ALREADY_INITIALIZED: u64 = 3;
-    /// Caller not authorized to call migration functions.
-    const ENOT_MIGRATION_SIGNER: u64 = 4;
 
     struct CollectionProperty has copy, drop, store {
         value: bool,
@@ -227,7 +225,7 @@ module minter::collection_properties {
         borrow_global_mut<CollectionProperties>(object::object_address(&obj))
     }
 
-    fun assert_owner<T: key>(collection_owner: address, obj: Object<T>) {
+    inline fun assert_owner<T: key>(collection_owner: address, obj: Object<T>) {
         assert!(
             object::owner(obj) == collection_owner,
             error::permission_denied(ENOT_OBJECT_OWNER),
@@ -336,8 +334,7 @@ module minter::collection_properties {
         collection_owner: &signer,
         obj: Object<T>,
     ): CollectionProperties acquires CollectionProperties {
-        let migration_object_signer = migration_helper::migration_object_address();
-        assert!(signer::address_of(migration_signer) == migration_object_signer, ENOT_MIGRATION_SIGNER);
+        migration_helper::assert_migration_object_signer(migration_signer);
 
         let properties = *authorized_borrow_mut(collection_owner, obj);
 

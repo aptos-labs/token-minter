@@ -23,10 +23,8 @@ module minter::collection_components {
     const EFIELD_NOT_MUTABLE: u64 = 3;
     /// The collection does not have ExtendRef, so it is not extendable.
     const ECOLLECTION_NOT_EXTENDABLE: u64 = 4;
-    /// Caller not authorized to call migration functions.
-    const ENOT_MIGRATION_SIGNER: u64 = 5;
     /// The collection does not support forced transfers by collection owner.
-    const ECOLLECTION_NOT_TRANSFERABLE_BY_COLLECTION_OWNER: u64 = 6;
+    const ECOLLECTION_NOT_TRANSFERABLE_BY_COLLECTION_OWNER: u64 = 5;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct CollectionRefs has key {
@@ -39,9 +37,6 @@ module minter::collection_components {
         /// Used to transfer the collection as the collection owner.
         transfer_ref: Option<object::TransferRef>,
     }
-
-    /// Collection properties does not exist on this object.
-    const ECOLLECTION_PROPERTIES_DOES_NOT_EXIST: u64 = 1;
 
     /// This function creates all the refs to extend the collection, mutate the collection and royalties.
     public fun create_refs_and_properties(constructor_ref: &ConstructorRef): Object<CollectionRefs> {
@@ -120,7 +115,7 @@ module minter::collection_components {
         borrow_global_mut<CollectionRefs>(collection_refs_address(collection))
     }
 
-    fun assert_owner<T: key>(collection_owner: address, obj: Object<T>) {
+    inline fun assert_owner<T: key>(collection_owner: address, obj: Object<T>) {
         assert!(
             object::owner(obj) == collection_owner,
             error::permission_denied(ENOT_OBJECT_OWNER),
@@ -190,7 +185,7 @@ module minter::collection_components {
         collection_owner: &signer,
         collection: Object<Collection>,
     ): Option<object::ExtendRef> acquires CollectionRefs {
-        assert_migration_object_signer(migration_signer);
+        migration_helper::assert_migration_object_signer(migration_signer);
 
         let refs = authorized_borrow_refs_mut(collection, collection_owner);
         let extend_ref = extract_ref_if_present(&mut refs.extend_ref);
@@ -203,7 +198,7 @@ module minter::collection_components {
         collection_owner: &signer,
         collection: Object<Collection>,
     ): Option<collection::MutatorRef> acquires CollectionRefs {
-        assert_migration_object_signer(migration_signer);
+        migration_helper::assert_migration_object_signer(migration_signer);
 
         let refs = authorized_borrow_refs_mut(collection, collection_owner);
         let mutator_ref = extract_ref_if_present(&mut refs.mutator_ref);
@@ -216,7 +211,7 @@ module minter::collection_components {
         collection_owner: &signer,
         collection: Object<Collection>,
     ): Option<royalty::MutatorRef> acquires CollectionRefs {
-        assert_migration_object_signer(migration_signer);
+        migration_helper::assert_migration_object_signer(migration_signer);
 
         let refs = authorized_borrow_refs_mut(collection, collection_owner);
         let royalty_mutator_ref = extract_ref_if_present(&mut refs.royalty_mutator_ref);
@@ -229,7 +224,7 @@ module minter::collection_components {
         collection_owner: &signer,
         collection: Object<Collection>,
     ): Option<object::TransferRef> acquires CollectionRefs {
-        assert_migration_object_signer(migration_signer);
+        migration_helper::assert_migration_object_signer(migration_signer);
 
         let refs = authorized_borrow_refs_mut(collection, collection_owner);
         let transfer_ref = extract_ref_if_present(&mut refs.transfer_ref);
@@ -268,10 +263,5 @@ module minter::collection_components {
             error::not_found(ECOLLECTION_REFS_DOES_NOT_EXIST)
         );
         collection_address
-    }
-
-    fun assert_migration_object_signer(migration_signer: &signer) {
-        let migration_object_signer = migration_helper::migration_object_address();
-        assert!(signer::address_of(migration_signer) == migration_object_signer, ENOT_MIGRATION_SIGNER);
     }
 }
