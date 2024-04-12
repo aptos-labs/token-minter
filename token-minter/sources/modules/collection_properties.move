@@ -6,16 +6,13 @@ module minter::collection_properties {
     use std::string::String;
     use aptos_framework::event;
     use aptos_framework::object::{Self, ConstructorRef, Object};
+    use minter::object_management;
     use minter::migration_helper;
 
     /// Collection properties does not exist on this object.
     const ECOLLECTION_PROPERTIES_DOES_NOT_EXIST: u64 = 1;
-    /// The signer is not the owner of the object.
-    const ENOT_OBJECT_OWNER: u64 = 2;
     /// The collection property is already initialized.
-    const ECOLLECTION_PROPERTY_ALREADY_INITIALIZED: u64 = 3;
-    /// Caller not authorized to call migration functions.
-    const ENOT_MIGRATION_SIGNER: u64 = 4;
+    const ECOLLECTION_PROPERTY_ALREADY_INITIALIZED: u64 = 2;
 
     struct CollectionProperty has copy, drop, store {
         value: bool,
@@ -221,17 +218,10 @@ module minter::collection_properties {
         collection_owner: &signer,
         obj: Object<T>,
     ): &mut CollectionProperties acquires CollectionProperties {
-        assert_owner(signer::address_of(collection_owner), obj);
+        object_management::assert_owner(signer::address_of(collection_owner), obj);
         assert!(collection_properties_exists(obj), error::not_found(ECOLLECTION_PROPERTIES_DOES_NOT_EXIST));
 
         borrow_global_mut<CollectionProperties>(object::object_address(&obj))
-    }
-
-    fun assert_owner<T: key>(collection_owner: address, obj: Object<T>) {
-        assert!(
-            object::owner(obj) == collection_owner,
-            error::permission_denied(ENOT_OBJECT_OWNER),
-        );
     }
 
     public fun mutable_description(properties: &CollectionProperties): (bool, bool) {
@@ -336,8 +326,7 @@ module minter::collection_properties {
         collection_owner: &signer,
         obj: Object<T>,
     ): CollectionProperties acquires CollectionProperties {
-        let migration_object_signer = migration_helper::migration_object_address();
-        assert!(signer::address_of(migration_signer) == migration_object_signer, ENOT_MIGRATION_SIGNER);
+        migration_helper::assert_migration_object_signer(migration_signer);
 
         let properties = *authorized_borrow_mut(collection_owner, obj);
 

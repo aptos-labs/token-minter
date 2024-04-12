@@ -11,7 +11,7 @@ module minter::coin_payment {
     /// Insufficient coin balance to make the payment.
     const EINSUFFICIENT_BALANCE: u64 = 2;
 
-    struct CoinPayment<phantom T> has copy, drop, store {
+    struct CoinPayment<phantom T> has store {
         /// The amount of coin to be paid.
         amount: u64,
         /// The address to which the coin is to be paid to.
@@ -52,6 +52,10 @@ module minter::coin_payment {
             destination,
             category: category(coin_payment),
         });
+    }
+
+    public fun destroy<T>(coin_payment: CoinPayment<T>) {
+        let CoinPayment { amount: _, destination: _, category: _ } = coin_payment;
     }
 
     public fun amount<T>(coin_payment: &CoinPayment<T>): u64 {
