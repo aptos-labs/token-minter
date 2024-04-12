@@ -34,12 +34,14 @@ module minter::coin_payment_tests {
         let destination = signer::address_of(creator);
         let coin_payments = vector<CoinPayment<AptosCoin>>[];
         let mint_coin_payment = coin_payment::create<AptosCoin>(
+            creator,
             mint_fee,
             destination,
             string::utf8(b"Mint fee"),
         );
         vector::push_back(&mut coin_payments, mint_coin_payment);
         let launchpad_coin_payment = coin_payment::create<AptosCoin>(
+            creator,
             launchpad_fee,
             destination,
             string::utf8(b"Launchpad fee"),
@@ -55,12 +57,12 @@ module minter::coin_payment_tests {
         let user_balance = coin::balance<AptosCoin>(signer::address_of(user));
         assert!(user_balance == user_initial_balance - total_cost, 0);
 
-        destroy_coin_payments(coin_payments);
+        destroy_coin_payments(creator, coin_payments);
     }
 
-    fun destroy_coin_payments(coin_payments: vector<CoinPayment<AptosCoin>>) {
+    fun destroy_coin_payments(owner: &signer, coin_payments: vector<CoinPayment<AptosCoin>>) {
         vector::destroy(coin_payments, |coin_payment| {
-            coin_payment::destroy(coin_payment)
+            coin_payment::destroy(owner, coin_payment)
         });
     }
 }

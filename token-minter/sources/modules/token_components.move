@@ -202,7 +202,7 @@ module minter::token_components {
         borrow_global_mut<TokenRefs>(token_address)
     }
 
-    fun assert_token_collection_owner(collection_owner: address, token: Object<Token>) {
+    inline fun assert_token_collection_owner(collection_owner: address, token: Object<Token>) {
         let collection = token::collection_object(token);
         assert!(
             object::owner(collection) == collection_owner,
