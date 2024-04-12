@@ -18,7 +18,7 @@ module minter::collection_properties_tests {
     }
 
     #[test(creator = @0x1)]
-    #[expected_failure(abort_code = 196611, location = minter::collection_properties)]
+    #[expected_failure(abort_code = 196610, location = minter::collection_properties)]
     public fun test_reinitialize_set_mutable_description_fails(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
         // Setting `mutable_description` to false
@@ -39,7 +39,7 @@ module minter::collection_properties_tests {
     }
 
     #[test(creator = @0x1)]
-    #[expected_failure(abort_code = 196611, location = minter::collection_properties)]
+    #[expected_failure(abort_code = 196610, location = minter::collection_properties)]
     public fun test_reinitialize_mutable_uri_fails(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
         collection_properties::set_mutable_uri(creator, properties, false); // First initialization
@@ -54,7 +54,7 @@ module minter::collection_properties_tests {
     }
 
     #[test(creator = @0x1)]
-    #[expected_failure(abort_code = 196611, location = minter::collection_properties)]
+    #[expected_failure(abort_code = 196610, location = minter::collection_properties)]
     public fun test_reinitialize_mutable_token_description_fails(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
         collection_properties::set_mutable_token_description(creator, properties, false); // First initialization
@@ -69,7 +69,7 @@ module minter::collection_properties_tests {
     }
 
     #[test(creator = @0x1)]
-    #[expected_failure(abort_code = 196611, location = minter::collection_properties)]
+    #[expected_failure(abort_code = 196610, location = minter::collection_properties)]
     public fun test_reinitialize_mutable_token_name_fails(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
         collection_properties::set_mutable_token_name(creator, properties, false); // First initialization
@@ -84,7 +84,7 @@ module minter::collection_properties_tests {
     }
 
     #[test(creator = @0x1)]
-    #[expected_failure(abort_code = 196611, location = minter::collection_properties)]
+    #[expected_failure(abort_code = 196610, location = minter::collection_properties)]
     public fun test_reinitialize_mutable_token_properties_fails(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
         collection_properties::set_mutable_token_properties(creator, properties, false); // First initialization
@@ -99,7 +99,7 @@ module minter::collection_properties_tests {
     }
 
     #[test(creator = @0x1)]
-    #[expected_failure(abort_code = 196611, location = minter::collection_properties)]
+    #[expected_failure(abort_code = 196610, location = minter::collection_properties)]
     public fun test_reinitialize_mutable_token_uri_fails(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
         collection_properties::set_mutable_token_uri(creator, properties, false); // First initialization
@@ -114,7 +114,7 @@ module minter::collection_properties_tests {
     }
 
     #[test(creator = @0x1)]
-    #[expected_failure(abort_code = 196611, location = minter::collection_properties)]
+    #[expected_failure(abort_code = 196610, location = minter::collection_properties)]
     public fun test_reinitialize_mutable_royalty_fails(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
         collection_properties::set_mutable_royalty(creator, properties, false); // First initialization
@@ -129,7 +129,7 @@ module minter::collection_properties_tests {
     }
 
     #[test(creator = @0x1)]
-    #[expected_failure(abort_code = 196611, location = minter::collection_properties)]
+    #[expected_failure(abort_code = 196610, location = minter::collection_properties)]
     public fun test_reinitialize_tokens_burnable_by_creator_fails(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
         collection_properties::set_tokens_burnable_by_collection_owner(creator, properties, false); // First initialization
@@ -144,7 +144,7 @@ module minter::collection_properties_tests {
     }
 
     #[test(creator = @0x1)]
-    #[expected_failure(abort_code = 196611, location = minter::collection_properties)]
+    #[expected_failure(abort_code = 196610, location = minter::collection_properties)]
     public fun test_reinitialize_tokens_transferable_by_collection_owner_fails(creator: &signer) {
         let (_, properties) = create_collection_with_default_properties(creator, true);
         collection_properties::set_tokens_transferable_by_collection_owner(creator, properties, false); // First initialization
