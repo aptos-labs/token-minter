@@ -281,17 +281,13 @@ module ez_launch::ez_launch {
         execute_coin_payments(user, ez_launch_config_obj);
         let borrowed_ez_launch_config = borrow(ez_launch_config_obj);
 
-        let token_index = if (borrowed_ez_launch_config.random_mint) {
-            timestamp::now_seconds() % length
+        let token = if (borrowed_ez_launch_config.random_mint) {
+            let random_index = timestamp::now_seconds() % length;
+            vector::remove(&mut available_tokens, random_index)
         } else {
-            length - 1
+            vector::pop_back(&mut available_tokens)
         };
-
-
-        let token = *vector::borrow(&available_tokens, token_index);
-        let user_address = signer::address_of(user);
-        object::transfer(&object_signer, token, user_address);
-        vector::pop_back(&mut available_tokens);
+        object::transfer(&object_signer, token, signer::address_of(user));
 
         if (borrowed_ez_launch_config.is_soulbound) {
             token_components::freeze_transfer(&object_signer, token);
