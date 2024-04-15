@@ -202,7 +202,7 @@ module ez_launch::ez_launch {
         let object_addr = signer::address_of(&object_signer);
         let ez_launch_config_obj = object::address_to_object(object_addr);
         
-        add_mint_fee(&mut mint_fee, creator_addr, ez_launch_config_obj);
+        add_mint_fee(creator, &mut mint_fee, creator_addr, ez_launch_config_obj);
 
         // (jill) add whitelist
 
@@ -311,6 +311,7 @@ module ez_launch::ez_launch {
     }
 
     fun add_mint_fee(
+        creator: &signer,
         mint_fee: &mut Option<u64>,
         creator_addr: address,
         ez_launch_config_obj: Object<EZLaunchConfig>,
@@ -319,6 +320,7 @@ module ez_launch::ez_launch {
         if (option::is_some(mint_fee)) {
             let mint_fee_category = b"Mint Fee";
             let coin_payment = coin_payment::create<AptosCoin>(
+                creator,
                 option::extract(mint_fee),
                 creator_addr,
                 string::utf8(mint_fee_category),

@@ -85,11 +85,12 @@ module launchpad::launchpad {
         };
 
         let fees = borrow_global_mut<Fees<T>>(launchpad_addr);
-        let coin_payment = coin_payment::create(amount, destination, category);
+        let coin_payment = coin_payment::create(creator, amount, destination, category);
         vector::push_back(&mut fees.coin_payments, coin_payment);
 
         // Take launchpad fees - 0.3% of each coin payment amount.
         let launchpad_fee = create_launchpad_fee<T>(
+            launchpad_signer,
             (amount * LAUNCHPAD_FEE_BPS_NUMERATOR) / LAUNCHPAD_FEE_BPS_DENOMINATOR
         );
         vector::push_back(&mut fees.coin_payments, launchpad_fee);
@@ -111,7 +112,8 @@ module launchpad::launchpad {
         while (i < len) {
             let coin_payment = vector::borrow(&fees.coin_payments, i);
             if (coin_payment::category(coin_payment) == category) {
-                vector::remove(&mut fees.coin_payments, i);
+                let coin_payment = vector::remove(&mut fees.coin_payments, i);
+                coin_payment::destroy(creator, coin_payment);
                 return
             };
             i = i + 1;
@@ -130,12 +132,12 @@ module launchpad::launchpad {
         uri: String,
         recipient_addr: address,
     ): Object<Token> acquires Fees, LaunchpadRefs, Launchpad {
-        let launchpad_addr = object::object_address(&launchpad_obj);
         // First execute all extensions with minter as the signer.
         // All extensions should reside under the launchpad address.
         // Creator can decide what fees to pay in. In this case, we will stick with APT fees.
-        pay_mint_and_launchpad_fees<AptosCoin>(minter, launchpad_addr);
+        pay_mint_and_launchpad_fees<AptosCoin>(minter, launchpad_obj);
 
+        let launchpad_addr = object::object_address(&launchpad_obj);
         assert!(exists<Launchpad>(launchpad_addr), error::invalid_argument(ELAUNCHPAD_DOES_NOT_EXIST));
         let launchpad = borrow_global<Launchpad>(launchpad_addr);
 
@@ -163,22 +165,20 @@ module launchpad::launchpad {
         object::object_from_constructor_ref(constructor_ref)
     }
 
-    /// Pay the mint and launchpad fees if they exist. If it is a free mint/no fees, take the default launchpad fee.
-    fun pay_mint_and_launchpad_fees<T>(minter: &signer, launchpad_addr: address) acquires Fees {
-        if (exists<Fees<T>>(launchpad_addr)) {
-            let fees = borrow_global<Fees<T>>(launchpad_addr);
-            vector::for_each_ref(&fees.coin_payments, |coin_payment| {
-                let coin_payment: &CoinPayment<T> = coin_payment;
-                coin_payment::execute(minter, coin_payment);
-            });
-        } else {
-            let launchpad_fee = create_launchpad_fee<T>(DEFAULT_LAUNCHPAD_FEE);
-            coin_payment::execute(minter, &launchpad_fee);
-        }
+    /// Pay the mint and launchpad fees if they exist. If it is a free mint/no fees, it takes the default launchpad fee.
+    fun pay_mint_and_launchpad_fees<T>(minter: &signer, launchpad_obj: Object<Launchpad>) acquires Fees {
+        let launchpad_addr = object::object_address(&launchpad_obj);
+        assert!(exists<Fees<T>>(launchpad_addr), error::invalid_argument(EFEES_DOES_NOT_EXIST));
+
+        let fees = borrow_global<Fees<T>>(launchpad_addr);
+        vector::for_each_ref(&fees.coin_payments, |coin_payment| {
+            let coin_payment: &CoinPayment<T> = coin_payment;
+            coin_payment::execute(minter, coin_payment);
+        });
     }
 
-    fun create_launchpad_fee<T>(amount: u64): CoinPayment<T> {
-        coin_payment::create(amount, @launchpad_admin, string::utf8(LAUNCHPAD_FEE_CATEGORY))
+    fun create_launchpad_fee<T>(launchpad_signer: &signer, amount: u64): CoinPayment<T> {
+        coin_payment::create(launchpad_signer, amount, @launchpad_admin, string::utf8(LAUNCHPAD_FEE_CATEGORY))
     }
 
     /// When calling this function, the `creator` will be have ownership of the collection.
