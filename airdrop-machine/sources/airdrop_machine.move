@@ -133,7 +133,7 @@ module airdrop_machine::airdrop_machine {
         mint_impl(admin, collection_config_object, recipient_addr)
     }
 
-    public fun mint_impl(
+    fun mint_impl(
         _minter: &signer,
         collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
@@ -286,5 +286,14 @@ module airdrop_machine::airdrop_machine {
     #[view]
     public fun minting_started(collection_config_object: Object<CollectionConfig>): bool acquires CollectionConfig {
         borrow(collection_config_object).ready_to_mint
+    }
+
+    #[test_only]
+    public fun mint_impl_for_testing(
+        minter: &signer,
+        collection_config_object: Object<CollectionConfig>,
+        recipient_addr: address,
+    ): Object<Token> acquires CollectionConfig {
+       mint_impl(minter,collection_config_object,recipient_addr)
     }
 }
