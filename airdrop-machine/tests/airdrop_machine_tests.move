@@ -26,7 +26,7 @@ module airdrop_machine::airdrop_machine_tests {
         let user_address = signer::address_of(user);
         let collection_config = create_collection_helper(admin);
         airdrop_machine::set_minting_status(admin, collection_config, true);
-        let user_minted_token = airdrop_machine::mint_impl(
+        let user_minted_token = airdrop_machine::mint_impl_for_testing(
             user,
             collection_config,
             user_address,
@@ -40,7 +40,7 @@ module airdrop_machine::airdrop_machine_tests {
         let user_address = signer::address_of(user);
         let collection = create_collection_helper(admin);
 
-        airdrop_machine::mint_impl(
+        airdrop_machine::mint_impl_for_testing(
             user,
             collection,
             user_address,
