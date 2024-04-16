@@ -14,7 +14,7 @@ launchpad_admin = "0x678"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
-rev = "mainnet"
+rev = 'mainnet'
 subdir = "aptos-move/framework/aptos-framework"
 
 [dependencies.AptosTokenObjects]
