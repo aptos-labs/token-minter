@@ -26,10 +26,8 @@ module airdrop_machine::airdrop_machine {
     const ENOT_OWNER: u64 = 1;
     /// CollectionConfig resource does not exist in the object address.
     const ECOLLECTION_CONFIG_DOES_NOT_EXIST: u64 = 2;
-    /// Royalty configuration is invalid because either numerator and denominator should be none or not none.
-    const EROYALTY_CONFIGURATION_INVALID: u64 = 3;
     /// Token Minting has not yet started.
-    const EMINTING_HAS_NOT_STARTED: u64 = 4;
+    const EMINTING_HAS_NOT_STARTED: u64 = 3;
     
     struct MetadataConfig has store, copy, drop {
         collection_name: String,
@@ -235,12 +233,14 @@ module airdrop_machine::airdrop_machine {
         royalty_denominator: &mut Option<u64>, 
         admin_addr: address
     ): Option<Royalty> {
-        assert!(option::is_some(royalty_numerator) == option::is_some(royalty_denominator), error::invalid_argument(EROYALTY_CONFIGURATION_INVALID));
-        if (option::is_some(royalty_numerator) && option::is_some(royalty_denominator) && option::extract(royalty_numerator) != 0 && option::extract(royalty_denominator) != 0) {
-            option::some(royalty::create(option::extract(royalty_numerator), option::extract(royalty_denominator), admin_addr))
-        } else {
-            option::none()
-        }
+        if (option::is_some(royalty_numerator) && option::is_some(royalty_denominator)) {
+            let num = option::extract(royalty_numerator);
+            let den = option::extract(royalty_denominator);
+            if (num != 0 && den != 0) {
+                option::some(royalty::create(num, den, admin_addr));
+            };
+        };
+        option::none()
     }
 
     fun configure_collection_and_token_properties(

@@ -48,14 +48,12 @@ module ez_launch::ez_launch {
     const EEZ_LAUNCH_CONFIG_DOES_NOT_EXIST: u64 = 2;
     /// CollectionProperties resource does not exist in the object address.
     const ECOLLECTION_PROPERTIES_DOES_NOT_EXIST: u64 = 3;
-    /// Royalty configuration is invalid because either numerator and denominator should be none or not none.
-    const EROYALTY_CONFIGURATION_INVALID: u64 = 4;
     /// Token Metadata configuration is invalid with different metadata length.
-    const ETOKEN_METADATA_CONFIGURATION_INVALID: u64 = 5;
+    const ETOKEN_METADATA_CONFIGURATION_INVALID: u64 = 4;
     /// Token Minting has not yet started.
-    const EMINTING_HAS_NOT_STARTED_YET: u64 = 6;
+    const EMINTING_HAS_NOT_STARTED_YET: u64 = 5;
     /// Tokens are all minted.
-    const ETOKENS_ALL_MINTED: u64 = 7;
+    const ETOKENS_ALL_MINTED: u64 = 6;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct EZLaunchConfig has key {
@@ -343,14 +341,16 @@ module ez_launch::ez_launch {
     fun royalty(
         royalty_numerator: &mut Option<u64>, 
         royalty_denominator: &mut Option<u64>, 
-        creator_addr: address
+        admin_addr: address,
     ): Option<Royalty> {
-        assert!(option::is_some(royalty_numerator) == option::is_some(royalty_denominator), error::invalid_argument(EROYALTY_CONFIGURATION_INVALID));
-        if (option::is_some(royalty_numerator) && option::is_some(royalty_denominator) && option::extract(royalty_numerator) != 0 && option::extract(royalty_denominator) != 0) {
-            option::some(royalty::create(option::extract(royalty_numerator), option::extract(royalty_denominator), creator_addr))
-        } else {
-            option::none()
-        }
+        if (option::is_some(royalty_numerator) && option::is_some(royalty_denominator)) {
+            let num = option::extract(royalty_numerator);
+            let den = option::extract(royalty_denominator);
+            if (num != 0 && den != 0) {
+                option::some(royalty::create(num, den, admin_addr));
+            };
+        };
+        option::none()
     }
 
     fun configure_collection_and_token_properties(

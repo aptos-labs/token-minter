@@ -55,8 +55,8 @@ module ez_launch::ez_launch_tests {
             true, // tokens_transferrable_by_collection_owner,
             option::none(), // No max supply.
             option::none(), // mint_fee.
-            option::none(), // royalty_numerator.
-            option::none(), // royalty_denominator.
+            option::some(1), // royalty_numerator.
+            option::some(1), // royalty_denominator.
         )
     }
 

@@ -35,7 +35,7 @@ module airdrop_machine::airdrop_machine_tests {
     }
 
     #[test(admin = @0x1, user = @0x2)]
-    #[expected_failure(abort_code = 327684, location = airdrop_machine::airdrop_machine)]
+    #[expected_failure(abort_code = 327683, location = airdrop_machine::airdrop_machine)]
     fun test_mint_fail(admin: &signer, user: &signer) {
         let user_address = signer::address_of(user);
         let collection = create_collection_helper(admin);
@@ -62,7 +62,7 @@ module airdrop_machine::airdrop_machine_tests {
             true, // tokens_transferrable_by_collection_owner,
             option::none(), // No max supply.
             option::none(), // royalty_numerator.
-            option::none(), // royalty_denominator.
+            option::some(1), // royalty_denominator.
         )
     }
 }
