@@ -44,6 +44,7 @@ export interface OutJson {
   assetPath: string;
   collection: CollectionMetadata;
   tokens: TokenMetadata[];
+  configAddress: string;
 }
 
 export const OCTAS_PER_APT = 100_000_000;
@@ -133,4 +134,24 @@ export function expandTilde(filePath: string) {
     return homeDirectory;
   }
   return path.join(homeDirectory, filePath.slice(2));
+}
+
+export async function resolveConfigAddress(projectPath: string, ezlaunchConfigAddress?: string) {
+  if (ezlaunchConfigAddress) {
+    return ezlaunchConfigAddress;
+  }
+
+  const configPath = resolvePath(projectPath, "config.json");
+  if (fs.existsSync(configPath)) {
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    if (!config.configAddress) {
+      exitWithError("No EZLaunch config address found in config.json");
+    }
+    console.log(`Found config address in config.json: ${config.configAddress}`);
+    return config.configAddress;
+  } else {
+    exitWithError(
+      "config.json not found and no EZLaunch config address was provided",
+    );
+  }
 }
