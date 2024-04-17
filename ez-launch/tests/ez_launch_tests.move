@@ -37,7 +37,7 @@ module ez_launch::ez_launch_tests {
             1,
         );
         ez_launch::set_minting_status(creator, ez_launch_config_obj, true /* ready_to_mint */);
-        let minted_token = ez_launch::mint_impl(user, ez_launch_config_obj);
+        let minted_token = ez_launch::mint_for_testing(user, ez_launch_config_obj);
         assert!(object::owner(minted_token) == user_address, 1);
     }
     

@@ -122,7 +122,7 @@ module ez_launch::ez_launch {
         )
     }
 
-    public entry fun mint(
+    entry fun mint(
         user: &signer,
         ez_launch_config_obj: Object<EZLaunchConfig>,
     ) acquires EZLaunchConfig {
@@ -263,7 +263,7 @@ module ez_launch::ez_launch {
         object::object_from_constructor_ref(constructor_ref)
     }
     
-    public fun mint_impl(
+    fun mint_impl(
         user: &signer,
         ez_launch_config_obj: Object<EZLaunchConfig>,
     ): Object<Token> acquires EZLaunchConfig {
@@ -282,7 +282,7 @@ module ez_launch::ez_launch {
         let borrowed_ez_launch_config = borrow(ez_launch_config_obj);
 
         let token = if (borrowed_ez_launch_config.random_mint) {
-            let random_index = timestamp::now_seconds() % length;
+            let random_index = timestamp::now_microseconds() % length;
             vector::remove(&mut available_tokens, random_index)
         } else {
             vector::pop_back(&mut available_tokens)
@@ -416,5 +416,13 @@ module ez_launch::ez_launch {
     #[view]
     public fun authorized_collection(config_owner: &signer, ez_launch_config_obj: Object<EZLaunchConfig>): Object<Collection> acquires EZLaunchConfig {
         authorized_borrow(config_owner, ez_launch_config_obj).collection
+    }
+
+    #[test_only]
+    public fun mint_for_testing(
+        user: &signer,
+        ez_launch_config_obj: Object<EZLaunchConfig>,
+    ): Object<Token> acquires EZLaunchConfig {
+        mint_impl(user,ez_launch_config_obj)
     }
 }

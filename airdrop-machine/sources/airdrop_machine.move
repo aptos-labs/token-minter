@@ -7,7 +7,7 @@ module airdrop_machine::airdrop_machine {
     use std::string::String;
     use std::vector;
 
-    use aptos_framework::transaction_context;
+    use aptos_framework::timestamp;
     use aptos_framework::object::{Self, Object};
 
     use aptos_token_objects::collection;
@@ -81,7 +81,7 @@ module airdrop_machine::airdrop_machine {
         );
     }
 
-    public entry fun mint(
+    entry fun mint(
         user: &signer,
         collection_config_object: Object<CollectionConfig>,
     ) acquires CollectionConfig {
@@ -279,8 +279,7 @@ module airdrop_machine::airdrop_machine {
     }
 
     fun get_pseudo_random_index(length: u64): u64 {
-        let txn_hash = transaction_context::get_transaction_hash();
-        ((*vector::borrow(&txn_hash, 0) as u64) * 256u64) % length
+        timestamp::now_microseconds() % length
     }
 
     #[view]

@@ -7,9 +7,11 @@ module airdrop_machine::airdrop_machine_tests {
     use aptos_framework::object::Object;
     use airdrop_machine::airdrop_machine;
     use airdrop_machine::airdrop_machine::CollectionConfig;
+    use aptos_framework::timestamp::set_time_has_started_for_testing;
 
     #[test(admin = @0x1, user = @0x2)]
     fun test_admin_minted_token(admin: &signer, user: &signer) {
+        set_time_has_started_for_testing(admin);
         let user_address = signer::address_of(user);
         let collection_config = create_collection_helper(admin);
         airdrop_machine::set_minting_status(admin, collection_config, true);
@@ -23,6 +25,7 @@ module airdrop_machine::airdrop_machine_tests {
 
     #[test(admin = @0x1, user = @0x2)]
     fun test_user_minted_token(admin: &signer, user: &signer) {
+        set_time_has_started_for_testing(admin);
         let user_address = signer::address_of(user);
         let collection_config = create_collection_helper(admin);
         airdrop_machine::set_minting_status(admin, collection_config, true);
