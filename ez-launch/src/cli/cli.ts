@@ -195,15 +195,15 @@ async function createCollection(
   assetPath: string,
 ) {
   const fullPath = resolvePath(".", name);
-  // if (fs.existsSync(fullPath)) {
-  //   exitWithError(`${fullPath} already exists.`);
-  // }
-  // fs.mkdirSync(fullPath, { recursive: true });
+  if (fs.existsSync(fullPath)) {
+    exitWithError(`${fullPath} already exists.`);
+  }
+  fs.mkdirSync(fullPath, { recursive: true });
 
   const configPath = path.join(fullPath, "config.json");
-  // if (fs.existsSync(configPath)) {
-  //   exitWithError(`${configPath} already exists.`);
-  // }
+  if (fs.existsSync(configPath)) {
+    exitWithError(`${configPath} already exists.`);
+  }
 
   // Load the collection metadata from the provided URI
   const collectionMetadataPath = path.join(assetPath, "collection.json");
