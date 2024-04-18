@@ -7,6 +7,7 @@ module airdrop_machine::airdrop_machine {
     use std::string::String;
     use std::vector;
 
+    use aptos_framework::event;
     use aptos_framework::transaction_context;
     use aptos_framework::object::{Self, Object};
 
@@ -28,14 +29,22 @@ module airdrop_machine::airdrop_machine {
     const ECOLLECTION_CONFIG_DOES_NOT_EXIST: u64 = 2;
     /// Token Minting has not yet started.
     const EMINTING_HAS_NOT_STARTED: u64 = 3;
-    
-    struct MetadataConfig has store, copy, drop {
+    /// Token Metadata URIs and Weights have different size.
+    const ETOKEN_METADATA_MISMATCH: u64 = 4;
+
+    struct TokenMetadata has copy, store, drop {
+        uri: String,
+        weight: u64,  // to add different probabilities of getting randomly selected
+    }
+
+    struct MetadataConfig has copy, store, drop {
         collection_name: String,
         collection_description: String,
         collection_uri: String,
         token_name_prefix: String,
         token_description: String,
-        token_uris: vector<String>,
+        token_metadatas: vector<TokenMetadata>,
+        token_total_weight: u64, // memoization on uri weights to avoid repeated computation
     }
 
     struct CollectionConfig has key {
@@ -43,6 +52,14 @@ module airdrop_machine::airdrop_machine {
         collection: Object<Collection>,
         extend_ref: object::ExtendRef,
         ready_to_mint: bool,
+    }
+
+    #[event]
+    /// Emitted when a token has been minted by a user.
+    struct Mint has drop, store {
+        token: Object<Token>,
+        to: address,
+        referrer: String,
     }
 
     public entry fun create_collection(
@@ -53,6 +70,7 @@ module airdrop_machine::airdrop_machine {
         token_name_prefix: String,
         token_description: String,
         token_uris: vector<String>,
+        token_uris_weights: vector<u64>,
         mutable_collection_metadata: bool, // including description, uri, royalty, to make admin life easier
         mutable_token_metadata: bool, // including description, name, properties, uri, to make admin life easier
         tokens_burnable_by_collection_owner: bool,
@@ -69,6 +87,7 @@ module airdrop_machine::airdrop_machine {
             token_name_prefix,
             token_description,
             token_uris,
+            token_uris_weights,
             mutable_collection_metadata,
             mutable_token_metadata,
             tokens_burnable_by_collection_owner,
@@ -79,15 +98,23 @@ module airdrop_machine::airdrop_machine {
         );
     }
 
-    public entry fun mint(
+    entry fun mint(
         user: &signer,
         collection_config_object: Object<CollectionConfig>,
+        referrer: String,
     ) acquires CollectionConfig {
-        mint_impl(
+        let user_addr = signer::address_of(user);
+        let token = mint_impl(
             user,
             collection_config_object,
-            signer::address_of(user),
+            user_addr,
         );
+
+        event::emit(Mint {
+            token,
+            to: user_addr,
+            referrer,
+        });
     }
 
     // only used by txn emitter for load testing
@@ -142,8 +169,8 @@ module airdrop_machine::airdrop_machine {
         let collection_owner_signer = collection_owner_signer(collection_config);
         let metadata_config = collection_config.metadata_config;
         let collection = collection_config.collection;
-        let index = get_pseudo_random_index(vector::length(&metadata_config.token_uris));
-        let uri = *vector::borrow(&metadata_config.token_uris, (index as u64));
+        let index = get_weighted_pseudo_random_index(&metadata_config.token_metadatas, metadata_config.token_total_weight);
+        let uri = vector::borrow(&metadata_config.token_metadatas, index).uri;
         let constructor_ref = &token::create_numbered_token(
             &collection_owner_signer,
             collection::name(collection),
@@ -167,6 +194,7 @@ module airdrop_machine::airdrop_machine {
         token_name_prefix: String,
         token_description: String,
         token_uris: vector<String>,
+        token_uris_weights: vector<u64>,
         mutable_collection_metadata: bool,
         mutable_token_metadata: bool,
         tokens_burnable_by_collection_owner: bool,
@@ -210,14 +238,17 @@ module airdrop_machine::airdrop_machine {
             tokens_transferrable_by_collection_owner,
         );
 
+        let (token_metadatas, token_total_weight) = create_token_metadatas_and_compute_total_weight(token_uris, token_uris_weights);
         let metadata_config = MetadataConfig {
             collection_name,
             collection_description,
             collection_uri,
             token_name_prefix,
             token_description,
-            token_uris,
+            token_metadatas,
+            token_total_weight, 
         };
+
         move_to(&object_signer, CollectionConfig {
             metadata_config,
             collection,
@@ -278,9 +309,66 @@ module airdrop_machine::airdrop_machine {
         borrow_global_mut<CollectionConfig>(object::object_address(&collection_config_object))
     }
 
-    fun get_pseudo_random_index(length: u64): u64 {
+    fun get_weighted_pseudo_random_index(token_metadatas: &vector<TokenMetadata>, total_weight: u64): u64 {
+        // Obtain a pseudo-random value using the transaction hash
         let txn_hash = transaction_context::get_transaction_hash();
-        ((*vector::borrow(&txn_hash, 0) as u64) * 256u64) % length
+        // Initialize the seed used to compute the pseudo-random index.
+        // This seed is computed by aggregating bytes from the transaction hash.
+        let seed = 0u64;
+        let j = 0;
+
+        // Iterate over the first 4 bytes of the transaction hash to generate a sufficiently random seed.
+        // The loop uses a maximum of 4 bytes because larger sizes would not significantly increase randomness
+        // and would complicate the calculation unnecessarily.
+        while (j < 4 && j < vector::length(&txn_hash)) {
+            let byte = (*vector::borrow(&txn_hash, j) as u64);
+            // Shift the byte by its position times 8 bits. This distributes the randomness evenly across the seed.
+            seed = seed + (byte << ((j * 8) as u8));
+            j = j + 1;
+        };
+        let random_weight = seed % total_weight;
+
+        // Iterate through each metadata's weight and accumulate until we surpass the random weight.
+        // This loop guarantees that each token's chance of being selected is proportional to its weight.
+        let cumulative_weight = 0u64;
+        let index = 0;
+        while (index < vector::length(token_metadatas)) {
+            let weight = vector::borrow(token_metadatas, index).weight;
+            cumulative_weight = cumulative_weight + weight;
+            if (random_weight < cumulative_weight) {
+                return index
+            };
+            index = index + 1;
+        };
+        // Fallback if no valid index is found, though it should not happen
+        0
+    }
+
+    public fun create_token_metadatas_and_compute_total_weight(
+        token_uris: vector<String>, 
+        token_uris_weights: vector<u64>
+    ): (vector<TokenMetadata>, u64) {
+        let token_metadatas: vector<TokenMetadata> = vector::empty();
+        let total_weight = 0u64;
+
+        let len = vector::length(&token_uris);
+        assert!(len == vector::length(&token_uris_weights), ETOKEN_METADATA_MISMATCH);
+
+        let i = 0;
+        while (i < len) {
+            let uri = *vector::borrow(&token_uris, i);
+            let weight = *vector::borrow(&token_uris_weights, i);
+
+            vector::push_back(&mut token_metadatas, TokenMetadata {
+                uri,
+                weight,
+            });
+
+            total_weight = total_weight + weight;
+            i = i + 1;
+        };
+
+        (token_metadatas, total_weight)
     }
 
     #[view]

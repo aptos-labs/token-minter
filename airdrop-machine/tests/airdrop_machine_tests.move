@@ -56,6 +56,7 @@ module airdrop_machine::airdrop_machine_tests {
             utf8(b"Airdrop token description"),
             utf8(b"Airdrop token name"),
             vector[utf8(b"Airdrop token URI 1"), utf8(b"Airdrop token URI 2")],
+            vector[20, 80],
             true, // mutable_collection_metadata
             true, // mutable_token_metadata
             true, // tokens_burnable_by_collection_owner,
