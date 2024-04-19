@@ -136,7 +136,10 @@ export function expandTilde(filePath: string) {
   return path.join(homeDirectory, filePath.slice(2));
 }
 
-export async function resolveConfigAddress(projectPath: string, ezlaunchConfigAddress?: string) {
+export async function resolveConfigAddress(
+  projectPath: string,
+  ezlaunchConfigAddress?: string,
+) {
   if (ezlaunchConfigAddress) {
     return ezlaunchConfigAddress;
   }

@@ -145,34 +145,47 @@ program
 
       await claimToken(account, ezlaunchConfigAddress);
     } catch (error) {
-      exitWithError(`Error claiming token: ${error.message}`);
+      exitWithError(`Error claiming token: ${error}`);
     }
   });
 
 program
-  .command('set-minting-status')
-  .description('Set minting status for an EZLaunch Collection.')
+  .command("set-minting-status")
+  .description("Set minting status for an EZLaunch Collection.")
   .requiredOption("--profile <profile>", "The profile name of the Aptos CLI.")
-  .requiredOption("--ready-to-mint <readyToMint>", "Set the minting status true or false, default to true if not set", true)
+  .requiredOption(
+    "--ready-to-mint <readyToMint>",
+    "Set the minting status true or false, default to true if not set",
+    true,
+  )
   .option(
     "--project-path <project-path>",
     "Path to the NFT project directory.",
     ".",
   )
-  .option("--ezlaunch-config-address <ezlaunchConfigAddress>", "EZLaunchConfig address")
+  .option(
+    "--ezlaunch-config-address <ezlaunchConfigAddress>",
+    "EZLaunchConfig address",
+  )
   .action(async (options) => {
-    const { profile, readyToMint, projectPath, ezlaunchConfigAddress } = options;
+    const { profile, readyToMint, projectPath, ezlaunchConfigAddress } =
+      options;
 
     try {
       const [account, network] = await resolveProfile(profile);
-      console.log(`Profile ${profile} resolved for network ${network} with account address ${account.accountAddress}.`);
+      console.log(
+        `Profile ${profile} resolved for network ${network} with account address ${account.accountAddress}.`,
+      );
 
-      const configAddress = await resolveConfigAddress(projectPath, ezlaunchConfigAddress);
+      const configAddress = await resolveConfigAddress(
+        projectPath,
+        ezlaunchConfigAddress,
+      );
 
       await setMintingStatus(account, configAddress, readyToMint);
       console.log(`Minting status set to ${readyToMint} for ${configAddress}`);
     } catch (error) {
-      exitWithError(`Error setting minting status: ${error.message}`);
+      exitWithError(`Error setting minting status: ${error}`);
     }
   });
 
