@@ -144,6 +144,7 @@ program
       );
 
       await claimToken(account, ezlaunchConfigAddress);
+      console.log(`Token claimed successfully to the address ${account.accountAddress} from the collection config ${ezlaunchConfigAddress}`);
     } catch (error) {
       exitWithError(`Error claiming token: ${error}`);
     }
@@ -182,7 +183,7 @@ program
         ezlaunchConfigAddress,
       );
 
-      await setMintingStatus(account, configAddress, readyToMint);
+      await setMintingStatus(account, configAddress, JSON.parse(readyToMint) as boolean);
       console.log(`Minting status set to ${readyToMint} for ${configAddress}`);
     } catch (error) {
       exitWithError(`Error setting minting status: ${error}`);
