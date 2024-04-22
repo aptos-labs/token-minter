@@ -31,13 +31,16 @@ module airdrop_machine::airdrop_machine {
     const EMINTING_HAS_NOT_STARTED: u64 = 3;
     /// Token Metadata URIs and Weights have different size.
     const ETOKEN_METADATA_MISMATCH: u64 = 4;
+    /// MetadataConfig resource does not exist in the object address.
+    const EMETADATA_CONFIG_DOES_NOT_EXIST: u64 = 5;
 
     struct TokenMetadata has copy, store, drop {
         uri: String,
-        weight: u64,  // to add different probabilities of getting randomly selected
+        weight: u64, // to add different probabilities of getting randomly selected
     }
 
-    struct MetadataConfig has copy, store, drop {
+    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
+    struct MetadataConfig has key {
         collection_name: String,
         collection_description: String,
         collection_uri: String,
@@ -47,10 +50,25 @@ module airdrop_machine::airdrop_machine {
         token_total_weight: u64, // memoization on uri weights to avoid repeated computation
     }
 
+    #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct CollectionConfig has key {
-        metadata_config: MetadataConfig,
         collection: Object<Collection>,
         extend_ref: object::ExtendRef,
+        ready_to_mint: bool,
+    }
+
+    #[event]
+    /// Emitted when a collection and collection config has been created.
+    struct CreateCollectionConfig has drop, store {
+        collection_config: Object<CollectionConfig>,
+        collection: Object<Collection>,
+        ready_to_mint: bool,
+    }
+
+    #[event]
+    /// Emitted when the minting status has been updated.
+    struct SetMintingStatus has drop, store {
+        collection_config: Object<CollectionConfig>,
         ready_to_mint: bool,
     }
 
@@ -102,7 +120,7 @@ module airdrop_machine::airdrop_machine {
         user: &signer,
         collection_config_object: Object<CollectionConfig>,
         referrer: String,
-    ) acquires CollectionConfig {
+    ) acquires CollectionConfig, MetadataConfig {
         let user_addr = signer::address_of(user);
         let token = mint_impl(
             user,
@@ -118,12 +136,12 @@ module airdrop_machine::airdrop_machine {
     }
 
     // only used by txn emitter for load testing
-     public entry fun mint_with_admin_worker(
+    public entry fun mint_with_admin_worker(
         _worker: &signer,
         admin: &signer,
         collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
-    ) acquires CollectionConfig {
+    ) acquires CollectionConfig, MetadataConfig {
         mint_with_admin_impl(
             admin,
             collection_config_object,
@@ -135,7 +153,7 @@ module airdrop_machine::airdrop_machine {
         admin: &signer,
         collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
-    ) acquires CollectionConfig {
+    ) acquires CollectionConfig, MetadataConfig {
         mint_with_admin_impl(
             admin,
             collection_config_object,
@@ -143,17 +161,23 @@ module airdrop_machine::airdrop_machine {
         );
     }
 
-    public entry fun set_minting_status(admin: &signer, collection_config_object: Object<CollectionConfig>, ready_to_mint: bool) acquires CollectionConfig {
+    public entry fun set_minting_status(
+        admin: &signer,
+        collection_config_object: Object<CollectionConfig>,
+        ready_to_mint: bool
+    ) acquires CollectionConfig {
         assert_owner(signer::address_of(admin), collection_config_object);
         let collection_config = borrow_mut(collection_config_object);
         collection_config.ready_to_mint = ready_to_mint;
+
+        event::emit(SetMintingStatus { collection_config: collection_config_object, ready_to_mint });
     }
 
     public fun mint_with_admin_impl(
         admin: &signer,
         collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
-    ): Object<Token> acquires CollectionConfig {
+    ): Object<Token> acquires CollectionConfig, MetadataConfig {
         assert_owner(signer::address_of(admin), collection_config_object);
         mint_impl(admin, collection_config_object, recipient_addr)
     }
@@ -162,14 +186,17 @@ module airdrop_machine::airdrop_machine {
         _minter: &signer,
         collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
-    ): Object<Token> acquires CollectionConfig {
+    ): Object<Token> acquires CollectionConfig, MetadataConfig {
         assert!(minting_started(collection_config_object), error::permission_denied(EMINTING_HAS_NOT_STARTED));
-        
+
         let collection_config = borrow(collection_config_object);
         let collection_owner_signer = collection_owner_signer(collection_config);
-        let metadata_config = collection_config.metadata_config;
+        let metadata_config = borrow_metadata_config(collection_config_object);
         let collection = collection_config.collection;
-        let index = get_weighted_pseudo_random_index(&metadata_config.token_metadatas, metadata_config.token_total_weight);
+        let index = get_weighted_pseudo_random_index(
+            &metadata_config.token_metadatas,
+            metadata_config.token_total_weight
+        );
         let uri = vector::borrow(&metadata_config.token_metadatas, index).uri;
         let constructor_ref = &token::create_numbered_token(
             &collection_owner_signer,
@@ -238,30 +265,39 @@ module airdrop_machine::airdrop_machine {
             tokens_transferrable_by_collection_owner,
         );
 
-        let (token_metadatas, token_total_weight) = create_token_metadatas_and_compute_total_weight(token_uris, token_uris_weights);
-        let metadata_config = MetadataConfig {
+        let (token_metadatas, token_total_weight) = create_token_metadatas_and_compute_total_weight(
+            token_uris,
+            token_uris_weights
+        );
+        move_to(&object_signer, MetadataConfig {
             collection_name,
             collection_description,
             collection_uri,
             token_name_prefix,
             token_description,
             token_metadatas,
-            token_total_weight, 
-        };
+            token_total_weight,
+        });
 
         move_to(&object_signer, CollectionConfig {
-            metadata_config,
             collection,
             extend_ref: object::generate_extend_ref(object_constructor_ref),
             ready_to_mint: false,
         });
 
-        object::address_to_object(signer::address_of(&object_signer))
+        let collection_config = object::object_from_constructor_ref(object_constructor_ref);
+        event::emit(CreateCollectionConfig {
+            collection_config,
+            collection,
+            ready_to_mint: false,
+        });
+
+        collection_config
     }
 
     fun royalty(
-        royalty_numerator: &mut Option<u64>, 
-        royalty_denominator: &mut Option<u64>, 
+        royalty_numerator: &mut Option<u64>,
+        royalty_denominator: &mut Option<u64>,
         admin_addr: address
     ): Option<Royalty> {
         if (option::is_some(royalty_numerator) && option::is_some(royalty_denominator)) {
@@ -289,15 +325,23 @@ module airdrop_machine::airdrop_machine {
         collection_properties::set_mutable_token_properties(admin, collection, mutable_token_metadata);
         collection_properties::set_mutable_token_description(admin, collection, mutable_token_metadata);
         collection_properties::set_mutable_token_uri(admin, collection, mutable_token_metadata);
-        collection_properties::set_tokens_transferable_by_collection_owner(admin, collection, tokens_transferrable_by_collection_owner);
-        collection_properties::set_tokens_burnable_by_collection_owner(admin, collection, tokens_burnable_by_collection_owner);
+        collection_properties::set_tokens_transferable_by_collection_owner(
+            admin,
+            collection,
+            tokens_transferrable_by_collection_owner
+        );
+        collection_properties::set_tokens_burnable_by_collection_owner(
+            admin,
+            collection,
+            tokens_burnable_by_collection_owner
+        );
     }
 
     fun assert_owner<T: key>(owner: address, object: Object<T>) {
         assert!(object::owner(object) == owner, error::permission_denied(ENOT_OWNER));
     }
 
-    inline fun collection_owner_signer(collection_config: &CollectionConfig): signer acquires CollectionConfig {
+    inline fun collection_owner_signer(collection_config: &CollectionConfig): signer {
         object::generate_signer_for_extending(&collection_config.extend_ref)
     }
 
@@ -305,7 +349,15 @@ module airdrop_machine::airdrop_machine {
         borrow_global<CollectionConfig>(object::object_address(&collection_config_object))
     }
 
-    inline fun borrow_mut(collection_config_object: Object<CollectionConfig>): &mut CollectionConfig acquires CollectionConfig {
+    inline fun borrow_metadata_config(collection_config_object: Object<CollectionConfig>): &MetadataConfig {
+        let obj_addr = object::object_address(&collection_config_object);
+        assert!(exists<MetadataConfig>(obj_addr), EMETADATA_CONFIG_DOES_NOT_EXIST);
+        borrow_global<MetadataConfig>(obj_addr)
+    }
+
+    inline fun borrow_mut(
+        collection_config_object: Object<CollectionConfig>
+    ): &mut CollectionConfig acquires CollectionConfig {
         borrow_global_mut<CollectionConfig>(object::object_address(&collection_config_object))
     }
 
@@ -345,7 +397,7 @@ module airdrop_machine::airdrop_machine {
     }
 
     public fun create_token_metadatas_and_compute_total_weight(
-        token_uris: vector<String>, 
+        token_uris: vector<String>,
         token_uris_weights: vector<u64>
     ): (vector<TokenMetadata>, u64) {
         let token_metadatas: vector<TokenMetadata> = vector::empty();
@@ -381,7 +433,7 @@ module airdrop_machine::airdrop_machine {
         minter: &signer,
         collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
-    ): Object<Token> acquires CollectionConfig {
-       mint_impl(minter,collection_config_object,recipient_addr)
+    ): Object<Token> acquires CollectionConfig, MetadataConfig {
+        mint_impl(minter, collection_config_object, recipient_addr)
     }
 }
