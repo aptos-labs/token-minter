@@ -26,7 +26,7 @@ module airdrop_machine::airdrop_machine_tests {
         let user_address = signer::address_of(user);
         let collection_config = create_collection_helper(admin);
         airdrop_machine::set_minting_status(admin, collection_config, true);
-        let user_minted_token = airdrop_machine::mint_impl(
+        let user_minted_token = airdrop_machine::mint_impl_for_testing(
             user,
             collection_config,
             user_address,
@@ -35,12 +35,12 @@ module airdrop_machine::airdrop_machine_tests {
     }
 
     #[test(admin = @0x1, user = @0x2)]
-    #[expected_failure(abort_code = 327684, location = airdrop_machine::airdrop_machine)]
+    #[expected_failure(abort_code = 327683, location = airdrop_machine::airdrop_machine)]
     fun test_mint_fail(admin: &signer, user: &signer) {
         let user_address = signer::address_of(user);
         let collection = create_collection_helper(admin);
 
-        airdrop_machine::mint_impl(
+        airdrop_machine::mint_impl_for_testing(
             user,
             collection,
             user_address,
@@ -56,13 +56,14 @@ module airdrop_machine::airdrop_machine_tests {
             utf8(b"Airdrop token description"),
             utf8(b"Airdrop token name"),
             vector[utf8(b"Airdrop token URI 1"), utf8(b"Airdrop token URI 2")],
+            vector[20, 80],
             true, // mutable_collection_metadata
             true, // mutable_token_metadata
             true, // tokens_burnable_by_collection_owner,
             true, // tokens_transferrable_by_collection_owner,
             option::none(), // No max supply.
             option::none(), // royalty_numerator.
-            option::none(), // royalty_denominator.
+            option::some(1), // royalty_denominator.
         )
     }
 }
