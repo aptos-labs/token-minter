@@ -173,6 +173,25 @@ module airdrop_machine::airdrop_machine {
         event::emit(SetMintingStatus { collection_config: collection_config_object, ready_to_mint });
     }
 
+    public entry fun burn_with_admin_worker(
+        _worker: &signer,
+        admin: &signer,
+        collection_config_object: Object<CollectionConfig>,
+        token: Object<Token>,
+    ) acquires CollectionConfig {
+        burn_with_admin(admin, collection_config_object, token);
+    }
+
+    public entry fun burn_with_admin(
+        admin: &signer,
+        collection_config_object: Object<CollectionConfig>,
+        token: Object<Token>,
+    ) acquires CollectionConfig {
+        assert_owner(signer::address_of(admin), collection_config_object);
+        let collection_signer = collection_owner_signer(borrow(collection_config_object));
+        token_components::burn(&collection_signer, token);
+    }
+
     public fun mint_with_admin_impl(
         admin: &signer,
         collection_config_object: Object<CollectionConfig>,
