@@ -2,6 +2,7 @@ import "dotenv/config";
 import {
   Account,
   Bool,
+  CommittedTransactionResponse,
   InputGenerateTransactionOptions,
   InputGenerateTransactionPayloadData,
   MoveOption,
@@ -9,9 +10,9 @@ import {
   TransactionWorkerEventsEnum,
   U64,
 } from "@aptos-labs/ts-sdk";
-import { aptos } from "./utils";
+import { aptos, exitWithError } from "./utils";
 
-const CONTRACT_ADDRESS = process.env["CONTRACT_ADDRESS"];
+export const CONTRACT_ADDRESS = process.env["CONTRACT_ADDRESS"];
 
 export async function createEZLaunchCollection(args: {
   creator: Account;
@@ -29,7 +30,7 @@ export async function createEZLaunchCollection(args: {
   royaltyNumerator?: string;
   royaltyDenominator?: string;
   options?: InputGenerateTransactionOptions;
-}): Promise<string> {
+}): Promise<CommittedTransactionResponse> {
   const {
     creator,
     description,
@@ -62,24 +63,20 @@ export async function createEZLaunchCollection(args: {
       new Bool(tokensTransferrableByCollectionOwner),
       new MoveOption(maxSupply ? new U64(Number(maxSupply)) : null),
       new MoveOption(mintFee ? new U64(Number(mintFee)) : null),
-      new MoveOption(
-        royaltyNumerator ? new U64(Number(royaltyNumerator)) : null,
-      ),
-      new MoveOption(
-        royaltyDenominator ? new U64(Number(royaltyDenominator)) : null,
-      ),
+      new MoveOption(new U64(Number(royaltyNumerator))),
+      new MoveOption(new U64(Number(royaltyDenominator))),
     ],
     options,
   );
   const response = await aptos.waitForTransaction({
     transactionHash: pendingTxnHash,
   });
-  return response.hash;
+  return response;
 }
 
 export async function preMintTokens(
   account: Account,
-  collectionAddress: string,
+  configAddress: string,
   tokenNames: string[],
   tokenUris: string[],
   tokenDescriptions: string[],
@@ -96,7 +93,7 @@ export async function preMintTokens(
     payloads.push({
       function: `${CONTRACT_ADDRESS}::ez_launch::pre_mint_tokens`,
       functionArguments: [
-        collectionAddress,
+        configAddress,
         tokenNames.slice(i, end),
         tokenUris.slice(i, end),
         tokenDescriptions.slice(i, end),
@@ -105,17 +102,52 @@ export async function preMintTokens(
     });
   }
 
-  aptos.transaction.batch.forSingleAccount({ sender: account, data: payloads });
+  try {
+    aptos.transaction.batch.forSingleAccount({
+      sender: account,
+      data: payloads,
+    });
+    aptos.transaction.batch.on(
+      TransactionWorkerEventsEnum.ExecutionFinish,
+      async (data) => {
+        console.log("Batch pre-minting finished", data);
 
-  aptos.transaction.batch.on(
-    TransactionWorkerEventsEnum.ExecutionFinish,
-    async (data) => {
-      console.log("Batch pre-minting finished", data);
+        // Cleanup listeners once all batches are processed
+        aptos.transaction.batch.removeAllListeners();
+      },
+    );
+  } catch (error) {
+    exitWithError(`Batch premint token failed: ${error}`);
+  }
+}
 
-      // Cleanup listeners once all batches are processed
-      aptos.transaction.batch.removeAllListeners();
-    },
+export async function claimToken(
+  user: Account,
+  configAddress: string,
+): Promise<string> {
+  const pendingTxnHash = await buildAndSubmitTransaction(user, "mint", [
+    configAddress,
+  ]);
+  const response = await aptos.waitForTransaction({
+    transactionHash: pendingTxnHash,
+  });
+  return response.hash;
+}
+
+export async function setMintingStatus(
+  creator: Account,
+  configAddress: string,
+  readyToMint: boolean,
+): Promise<boolean> {
+  const pendingTxnHash = await buildAndSubmitTransaction(
+    creator,
+    "set_minting_status",
+    [configAddress, readyToMint],
   );
+  const response = await aptos.waitForTransaction({
+    transactionHash: pendingTxnHash,
+  });
+  return response.success;
 }
 
 async function buildAndSubmitTransaction(

@@ -85,12 +85,11 @@ module launchpad::launchpad {
         };
 
         let fees = borrow_global_mut<Fees<T>>(launchpad_addr);
-        let coin_payment = coin_payment::create(creator, amount, destination, category);
+        let coin_payment = coin_payment::create(amount, destination, category);
         vector::push_back(&mut fees.coin_payments, coin_payment);
 
         // Take launchpad fees - 0.3% of each coin payment amount.
         let launchpad_fee = create_launchpad_fee<T>(
-            launchpad_signer,
             (amount * LAUNCHPAD_FEE_BPS_NUMERATOR) / LAUNCHPAD_FEE_BPS_DENOMINATOR
         );
         vector::push_back(&mut fees.coin_payments, launchpad_fee);
@@ -113,7 +112,7 @@ module launchpad::launchpad {
             let coin_payment = vector::borrow(&fees.coin_payments, i);
             if (coin_payment::category(coin_payment) == category) {
                 let coin_payment = vector::remove(&mut fees.coin_payments, i);
-                coin_payment::destroy(creator, coin_payment);
+                coin_payment::destroy(coin_payment);
                 return
             };
             i = i + 1;
@@ -177,8 +176,8 @@ module launchpad::launchpad {
         });
     }
 
-    fun create_launchpad_fee<T>(launchpad_signer: &signer, amount: u64): CoinPayment<T> {
-        coin_payment::create(launchpad_signer, amount, @launchpad_admin, string::utf8(LAUNCHPAD_FEE_CATEGORY))
+    fun create_launchpad_fee<T>(amount: u64): CoinPayment<T> {
+        coin_payment::create(amount, @launchpad_admin, string::utf8(LAUNCHPAD_FEE_CATEGORY))
     }
 
     /// When calling this function, the `creator` will be have ownership of the collection.

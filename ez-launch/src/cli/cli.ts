@@ -2,15 +2,26 @@ import colors from "colors";
 import fs from "fs";
 import path from "path";
 import { program } from "commander";
-import { Account } from "@aptos-labs/ts-sdk";
+import {
+  Account,
+  CommittedTransactionResponse,
+  WriteSetChangeWriteResource,
+} from "@aptos-labs/ts-sdk";
 import prompts from "prompts";
 import { uploadCollectionAndTokenAssets } from "./assetUploader";
-import { createEZLaunchCollection, preMintTokens } from "./contract";
+import {
+  CONTRACT_ADDRESS,
+  claimToken,
+  createEZLaunchCollection,
+  preMintTokens,
+  setMintingStatus,
+} from "./contract";
 import {
   OCTAS_PER_APT,
   OutJson,
   TokenMetadata,
   exitWithError,
+  resolveConfigAddress,
   resolvePath,
   resolveProfile,
 } from "./utils";
@@ -34,7 +45,7 @@ program
   )
   .requiredOption(
     "--asset-path <asset-path>",
-    "The asset path. Format: '/path/to/assets', containing 'collection.png', 'collection.json', '/images' folder, and '/json' folder."
+    "The asset path. Format: '/path/to/assets', containing 'collection.png', 'collection.json', '/images' folder, and '/json' folder.",
   )
   .requiredOption(
     "--fund-amount <amount>",
@@ -42,7 +53,11 @@ program
     parseFloat,
   )
   .action(
-    async (options: { profile: string; assetPath: string; fundAmount: number }) => {
+    async (options: {
+      profile: string;
+      assetPath: string;
+      fundAmount: number;
+    }) => {
       const { profile, assetPath, fundAmount } = options;
       const collectionMediaPath = `${assetPath}/collection.png`;
       const collectionMetadataJsonPath = `${assetPath}/collection.json`;
@@ -68,6 +83,7 @@ program
         tokenMetadataJsonFolderURI,
       );
       console.log(colors.green("Assets successfully uploaded."));
+      process.exit();
     },
   );
 
@@ -78,22 +94,24 @@ program
   .requiredOption("--profile <profile>", "The profile name of the Aptos CLI.")
   .requiredOption(
     "--asset-path <asset-path>",
-    "The asset path. Format: '/path/to/assets', containing 'collection.png', 'collection.json', '/images' folder, and '/json' folder."
+    "The asset path. Format: '/path/to/assets', containing 'collection.png', 'collection.json', '/images' folder, and '/json' folder.",
   )
-  .action(async (options: { profile: any; name: any; assetPath: any }) => {
-    const { profile, name, assetPath } = options;
+  .action(
+    async (options: { profile: string; name: string; assetPath: string }) => {
+      const { profile, name, assetPath } = options;
 
-    try {
-      const [account, network] = await resolveProfile(profile);
-      console.log(
-        `Profile ${profile} resolved for network ${network} with account address ${account.accountAddress}.`,
-      );
+      try {
+        const [account, network] = await resolveProfile(profile);
+        console.log(
+          `Profile ${profile} resolved for network ${network} with account address ${account.accountAddress}.`,
+        );
 
-      await createCollection(account, name, assetPath);
-    } catch (error) {
-      console.error(`Error initializing: ${error}`);
-    }
-  });
+        await createCollection(account, name, assetPath);
+      } catch (error) {
+        exitWithError(`Error creating collection: ${error}`);
+      }
+    },
+  );
 
 program
   .command("validate")
@@ -103,7 +121,7 @@ program
     "Path to the NFT project directory.",
     ".",
   )
-  .action(async (options: { projectPath: any }) => {
+  .action(async (options: { projectPath: string }) => {
     const { projectPath } = options;
     await validateProjectConfig(projectPath);
   });
@@ -113,21 +131,74 @@ program
   .description("Claim tokens from an EZLaunch Collection.")
   .requiredOption("--profile <profile>", "The profile name of the Aptos CLI.")
   .requiredOption(
-    "--ezlaunch-config-address <ezlaunch-config-address>",
+    "--ezlaunch-config-address <ezlaunchConfigAddress>",
     "EZLaunchConfig address",
   )
-  .action(async (options: { profile: any; ezLaunchConfigAddress: any }) => {
-    const { profile, ezLaunchConfigAddress } = options;
+  .action(async (options) => {
+    const { profile, ezlaunchConfigAddress } = options;
 
-    // TODO(jill) add token claim
+    try {
+      const [account, network] = await resolveProfile(profile);
+      console.log(
+        `Profile ${profile} resolved for network ${network} with account address ${account.accountAddress}.`,
+      );
+
+      await claimToken(account, ezlaunchConfigAddress);
+      console.log(`Token claimed successfully to the address ${account.accountAddress} from the collection config ${ezlaunchConfigAddress}`);
+    } catch (error) {
+      exitWithError(`Error claiming token: ${error}`);
+    }
+  });
+
+program
+  .command("set-minting-status")
+  .description("Set minting status for an EZLaunch Collection.")
+  .requiredOption("--profile <profile>", "The profile name of the Aptos CLI.")
+  .requiredOption(
+    "--ready-to-mint <readyToMint>",
+    "Set the minting status true or false, default to true if not set",
+    true,
+  )
+  .option(
+    "--project-path <project-path>",
+    "Path to the NFT project directory.",
+    ".",
+  )
+  .option(
+    "--ezlaunch-config-address <ezlaunchConfigAddress>",
+    "EZLaunchConfig address",
+  )
+  .action(async (options) => {
+    const { profile, readyToMint, projectPath, ezlaunchConfigAddress } =
+      options;
+
+    try {
+      const [account, network] = await resolveProfile(profile);
+      console.log(
+        `Profile ${profile} resolved for network ${network} with account address ${account.accountAddress}.`,
+      );
+
+      const configAddress = await resolveConfigAddress(
+        projectPath,
+        ezlaunchConfigAddress,
+      );
+
+      await setMintingStatus(account, configAddress, JSON.parse(readyToMint) as boolean);
+      console.log(`Minting status set to ${readyToMint} for ${configAddress}`);
+    } catch (error) {
+      exitWithError(`Error setting minting status: ${error}`);
+    }
   });
 
 async function validateProjectConfig(projectPath: string) {
-  const fullPath = path.resolve(projectPath, "config.json");
+  const fullPath = resolvePath(projectPath, "config.json");
 
   if (!fs.existsSync(fullPath)) {
-    console.error(colors.red("Error: The specified project path does not contain a config.json file."));
-    process.exit(0);
+    exitWithError(
+      colors.red(
+        "Error: The specified project path does not contain a config.json file.",
+      ),
+    );
   }
   const configBuf = fs.readFileSync(resolvePath(projectPath, "config.json"));
   const config = JSON.parse(configBuf.toString("utf8"));
@@ -148,22 +219,24 @@ async function validateProjectConfig(projectPath: string) {
   if (config.tokens.length === 0) {
     errors.push("No tokens provided.");
   } else {
-    config.tokens.forEach((token: { name: any; description: any; uri: any; }, index: any) => {
-      if (!token.name) {
-        errors.push(`Token at index ${index} has no name.`);
-      }
-      if (!token.description) {
-        errors.push(`Token at index ${index} has no description.`);
-      }
-      if (!token.uri) {
-        errors.push(`Token at index ${index} has no URI.`);
-      }
-    });
+    config.tokens.forEach(
+      (token: { name: any; description: any; uri: any }, index: any) => {
+        if (!token.name) {
+          errors.push(`Token at index ${index} has no name.`);
+        }
+        if (!token.description) {
+          errors.push(`Token at index ${index} has no description.`);
+        }
+        if (!token.uri) {
+          errors.push(`Token at index ${index} has no URI.`);
+        }
+      },
+    );
   }
 
   if (errors.length > 0) {
-    console.error(colors.red("Errors found in config:"));
-    errors.forEach((error) => console.error(error));
+    exitWithError(colors.red("Errors found in config:"));
+    errors.forEach((error) => exitWithError(error));
   }
 
   if (warnings.length > 0) {
@@ -195,15 +268,14 @@ async function createCollection(
   assetPath: string,
 ) {
   const fullPath = resolvePath(".", name);
-  // if (fs.existsSync(fullPath)) {
-  //   exitWithError(`${fullPath} already exists.`);
-  // }
-  // fs.mkdirSync(fullPath, { recursive: true });
+  if (fs.existsSync(fullPath)) {
+    console.log(`${fullPath} already exists, skipping creation.`);
+  } else {
+    fs.mkdirSync(fullPath, { recursive: true });
+    console.log(`${fullPath} created.`);
+  }
 
   const configPath = path.join(fullPath, "config.json");
-  // if (fs.existsSync(configPath)) {
-  //   exitWithError(`${configPath} already exists.`);
-  // }
 
   // Load the collection metadata from the provided URI
   const collectionMetadataPath = path.join(assetPath, "collection.json");
@@ -270,7 +342,7 @@ async function createCollection(
       type: "number",
       name: "royaltyDenominator",
       message: "Enter the royalty denominator:",
-      default: 100,
+      default: 0,
     },
   ];
   const responses = await prompts(questions as any);
@@ -295,12 +367,15 @@ async function createCollection(
       royaltyDenominator: responses.royaltyDenominator,
     },
     tokens: [],
+    configAddress: "",
   };
 
   // Process each token JSON file in the json folder
   const resolvedJsonPath = resolvePath(assetPath, "json");
   const files = fs.readdirSync(resolvedJsonPath);
-  const jsonFiles = files.filter(file => path.extname(file) === '.json').map(file => path.join(resolvedJsonPath, file));
+  const jsonFiles = files
+    .filter((file) => path.extname(file) === ".json")
+    .map((file) => path.join(resolvedJsonPath, file));
 
   jsonFiles.forEach((filePath: string) => {
     if (path.basename(filePath) === "collection.json") return; // Skip the collection metadata file
@@ -323,18 +398,11 @@ async function createCollection(
     outJson.tokens.push(token);
   });
 
-  // Write the outJson to config.json
-  await fs.promises.writeFile(
-    configPath,
-    JSON.stringify(outJson, null, 4),
-    "utf8",
-  );
-
   console.log("Preparing to create collections...");
 
-  let collectionAddress: string;
+  let txnResponse: CommittedTransactionResponse;
   try {
-    collectionAddress = await createEZLaunchCollection({
+    txnResponse = await createEZLaunchCollection({
       creator: account,
       description: collectionMetadata.description,
       name: collectionMetadata.name,
@@ -352,11 +420,20 @@ async function createCollection(
       royaltyNumerator: responses.royaltyNumerator,
       royaltyDenominator: responses.royaltyDenominator,
     });
-    console.log("Collection created at address:", collectionAddress);
+    console.log("Collection created at address:", txnResponse.hash);
   } catch (error) {
     throw new Error(`Failed to create collection: ${error}`);
   }
 
+  const collectionConfigAddress = (
+    txnResponse.changes.find(
+      (wsc) =>
+        (wsc as WriteSetChangeWriteResource).data.type ===
+        `${CONTRACT_ADDRESS}::ez_launch::EZLaunchConfig`,
+    ) as WriteSetChangeWriteResource
+  ).address;
+
+  outJson.configAddress = collectionConfigAddress;
   console.log("Preparing to pre-mint tokens...");
 
   let tokenNames: string[] = [];
@@ -371,7 +448,7 @@ async function createCollection(
   try {
     await preMintTokens(
       account,
-      collectionAddress!,
+      collectionConfigAddress!,
       tokenNames,
       tokenUris,
       tokenDescriptions,
@@ -380,6 +457,13 @@ async function createCollection(
   } catch (error) {
     throw new Error(`Failed to execute batch pre-minting tokens: ${error}`);
   }
+
+  // Write the outJson to config.json
+  await fs.promises.writeFile(
+    configPath,
+    JSON.stringify(outJson, null, 4),
+    "utf8",
+  );
 }
 
 async function run() {
