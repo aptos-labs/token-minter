@@ -71,8 +71,8 @@ module minter::signed_transaction_tests {
         signed_transaction::verify_signed_transaction(proof_data, wrong_data, sig);
     }
 
-    /// Test successful verification with the new key after an update
     #[test(creator = @0x123, user = @0x456)]
+    /// Test successful verification with the new key after an update
     fun verify_with_new_key_after_update(creator: &signer, user: &signer) {
         let (_, vpk_old) = ed25519::generate_keys();
         let pk_old = ed25519::public_key_into_unvalidated(vpk_old);
