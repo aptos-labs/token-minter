@@ -18,13 +18,13 @@
 /// # Example
 /// ```
 /// Create a recurring payment instruction for a subscription fee.
-/// let payment = coin_payment::create<T>(owner, 100, recipient_address, "Subscription Fee");
+/// let payment = coin_payment::create<T>(100, recipient_address, "Subscription Fee");
 ///
 /// // Execute the payment when due.
 /// coin_payment::execute<T>(&signer, &payment);
 ///
 /// // Optionally, destroy the payment instruction when the subscription ends, or if the payment is a one time payment.
-/// coin_payment::destroy<T>(&signer, payment);
+/// coin_payment::destroy<T>(payment);
 /// ```
 ///
 module minter::coin_payment {
