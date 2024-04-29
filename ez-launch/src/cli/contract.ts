@@ -3,6 +3,7 @@ import {
   Account,
   Bool,
   CommittedTransactionResponse,
+  FailureEventData,
   InputGenerateTransactionOptions,
   InputGenerateTransactionPayloadData,
   MoveOption,
@@ -107,6 +108,21 @@ export async function preMintTokens(
       sender: account,
       data: payloads,
     });
+
+    aptos.transaction.batch.on(
+      TransactionWorkerEventsEnum.TransactionSendFailed,
+      async (event: FailureEventData) => {
+        throw new Error(`${event.error}: ${event.message}`);
+      }
+    );
+
+    aptos.transaction.batch.addListener(
+      TransactionWorkerEventsEnum.TransactionExecutionFailed,
+      async (event: FailureEventData) => {
+        throw new Error(`${event.error}: ${event.message}`);
+      }
+    );
+
     aptos.transaction.batch.on(
       TransactionWorkerEventsEnum.ExecutionFinish,
       async (data) => {
