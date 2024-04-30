@@ -1,13 +1,13 @@
 [package]
-name = "AirdropMachine"
+name = "OnlyOnAptos"
 version = "1.0.0"
 authors = []
 
 [addresses]
-airdrop_machine = "_"
+only_on_aptos = "_"
 
 [dev-addresses]
-airdrop_machine = "0x123"
+only_on_aptos = "0x123"
 minter = "0x456"
 
 [dependencies.AptosFramework]

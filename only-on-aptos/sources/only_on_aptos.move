@@ -1,4 +1,4 @@
-module airdrop_machine::airdrop_machine {
+module only_on_aptos::only_on_aptos {
     use std::error;
     use std::option;
     use std::option::Option;
