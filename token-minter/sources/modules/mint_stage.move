@@ -375,7 +375,7 @@ module minter::mint_stage {
             let current_stage = simple_map::borrow(mint_stages, current_stage);
             if (new_start_time < current_stage.start_time
                 || (new_start_time == current_stage.start_time && new_end_time < current_stage.end_time)) {
-                break;
+                break
             };
             index = index + 1;
         };

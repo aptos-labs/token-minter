@@ -5,6 +5,7 @@ module only_on_aptos::only_on_aptos_tests {
     use std::string::utf8;
     use aptos_framework::object;
     use aptos_framework::object::Object;
+    use aptos_framework::timestamp::set_time_has_started_for_testing;
     use only_on_aptos::only_on_aptos;
     use only_on_aptos::only_on_aptos::CollectionConfig;
 
@@ -84,6 +85,7 @@ module only_on_aptos::only_on_aptos_tests {
     }
 
     fun create_collection_helper(admin: &signer): Object<CollectionConfig> {
+        set_time_has_started_for_testing(admin);
         only_on_aptos::create_collection_impl(
             admin,
             utf8(b"Airdrop collection description"),
