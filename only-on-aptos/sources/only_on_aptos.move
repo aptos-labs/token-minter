@@ -8,6 +8,7 @@ module only_on_aptos::only_on_aptos {
     use std::vector;
 
     use aptos_framework::event;
+    use aptos_framework::timestamp;
     use aptos_framework::transaction_context;
     use aptos_framework::object::{Self, Object};
 
@@ -383,9 +384,9 @@ module only_on_aptos::only_on_aptos {
     fun get_weighted_pseudo_random_index(token_metadatas: &vector<TokenMetadata>, total_weight: u64): u64 {
         // Obtain a pseudo-random value using the transaction hash
         let txn_hash = transaction_context::get_transaction_hash();
-        // Initialize the seed used to compute the pseudo-random index.
+        // Initialize the seed from timestamp in ms to be used to compute the pseudo-random index.
         // This seed is computed by aggregating bytes from the transaction hash.
-        let seed = 0u64;
+        let seed = timestamp::now_microseconds();
         let j = 0;
 
         // Iterate over the first 4 bytes of the transaction hash to generate a sufficiently random seed.
