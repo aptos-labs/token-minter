@@ -162,6 +162,35 @@ module minter::mint_stage_tests {
         assert!(mint_stage::is_allowlisted(mint_stage_data, category, user_addr) == false, 0);
     }
 
+    #[test(creator = @0x123, user = @0x456, aptos_framework = @0x1)]
+    fun test_remove_all_from_allowlist(creator: &signer, user: &signer, aptos_framework: &signer) {
+        let now = 100000;
+        init_timestamp(aptos_framework, now);
+
+        let start_time = now - 3600; // 1 hour prior to now
+        let end_time = start_time + 7200; // 2 hours post now
+        let category = utf8(b"Public sale");
+        let (_, mint_stage_data) = create_mint_stage_data_object(
+            creator,
+            start_time,
+            end_time,
+            category,
+            option::none()
+        );
+
+        let user_addr = signer::address_of(user);
+        let creator_addr = signer::address_of(creator);
+        let amount = 1;
+        mint_stage::add_to_allowlist(creator, mint_stage_data, category, user_addr, amount);
+        mint_stage::add_to_allowlist(creator, mint_stage_data, category, creator_addr, amount);
+        mint_stage::remove_everyone_from_allowlist(creator, mint_stage_data, category);
+
+        // Assert no one is allowlisted
+        assert!(!mint_stage::is_allowlisted(mint_stage_data, category, user_addr), 0);
+        assert!(!mint_stage::is_allowlisted(mint_stage_data, category, creator_addr), 0);
+        assert!(mint_stage::allowlist_count(mint_stage_data, category) == 0, 0);
+    }
+
     #[test(creator = @0x123, aptos_framework = @0x1)]
     fun test_set_start_and_end_time(creator: &signer, aptos_framework: &signer) {
         let now = 100000;
