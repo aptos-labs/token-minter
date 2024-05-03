@@ -251,6 +251,15 @@ module minter::mint_stage {
         smart_table::remove(&mut mint_stage.allowlist, addr);
     }
 
+    public fun remove_everyone_from_allowlist<T: key>(
+        owner: &signer,
+        obj: Object<T>,
+        stage: String,
+    ) acquires MintStageData {
+        let mint_stage = authorized_borrow_mut_mint_stage(owner, obj, stage);
+        smart_table::clear(&mut mint_stage.allowlist);
+    }
+
     public fun set_no_allowlist_max_per_user<T: key>(
         owner: &signer,
         obj: Object<T>,
@@ -304,6 +313,12 @@ module minter::mint_stage {
     ): bool acquires MintStageData {
         let mint_stage = simple_map::borrow(&borrow(obj).mint_stages, &stage);
         smart_table::contains(&mint_stage.allowlist, addr)
+    }
+
+    #[view]
+    public fun allowlist_count<T: key>(obj: Object<T>, stage: String): u64 acquires MintStageData {
+        let mint_stage = borrow_mint_stage(obj, stage);
+        smart_table::length(&mint_stage.allowlist)
     }
 
     #[view]
