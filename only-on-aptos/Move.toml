@@ -8,7 +8,6 @@ only_on_aptos = "_"
 
 [dev-addresses]
 only_on_aptos = "0x123"
-minter = "0x456"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-core.git"
@@ -24,8 +23,5 @@ subdir = 'aptos-move/framework/aptos-token-objects'
 git = 'https://github.com/aptos-labs/aptos-core.git'
 rev = 'mainnet'
 subdir = 'aptos-move/framework/aptos-token'
-
-[dependencies.TokenMinter]
-local = "../token-minter"
 
 [dev-dependencies]

@@ -19,10 +19,10 @@ module only_on_aptos::only_on_aptos {
     use aptos_token_objects::token;
     use aptos_token_objects::token::Token;
 
-    use minter::collection_components;
-    use minter::collection_properties;
-    use minter::token_components;
-    use minter::transfer_token;
+    use only_on_aptos::collection_components;
+    use only_on_aptos::collection_properties;
+    use only_on_aptos::token_components;
+    use only_on_aptos::transfer_token;
 
     /// The provided signer is not the collection owner.
     const ENOT_OWNER: u64 = 1;
