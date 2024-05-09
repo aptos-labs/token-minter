@@ -14,8 +14,7 @@ module only_on_aptos::only_on_aptos_tests {
         let user_address = signer::address_of(user);
         let collection_config = create_collection_helper(admin);
         only_on_aptos::set_minting_status(admin, collection_config, true);
-        let admin_minted_token = only_on_aptos::mint_with_admin_impl(
-            admin,
+        let admin_minted_token = only_on_aptos::mint_token_to_recipient(
             collection_config,
             user_address,
         );
