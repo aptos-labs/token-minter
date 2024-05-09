@@ -124,7 +124,6 @@ module only_on_aptos::only_on_aptos {
     ) acquires CollectionConfig, MetadataConfig {
         let user_addr = signer::address_of(user);
         let token = mint_impl(
-            user,
             collection_config_object,
             user_addr,
         );
@@ -134,32 +133,6 @@ module only_on_aptos::only_on_aptos {
             to: user_addr,
             referrer,
         });
-    }
-
-    // only used by txn emitter for load testing
-    public entry fun mint_with_admin_worker(
-        _worker: &signer,
-        admin: &signer,
-        collection_config_object: Object<CollectionConfig>,
-        recipient_addr: address,
-    ) acquires CollectionConfig, MetadataConfig {
-        mint_with_admin_impl(
-            admin,
-            collection_config_object,
-            recipient_addr,
-        );
-    }
-
-    public entry fun mint_with_admin(
-        admin: &signer,
-        collection_config_object: Object<CollectionConfig>,
-        recipient_addr: address,
-    ) acquires CollectionConfig, MetadataConfig {
-        mint_with_admin_impl(
-            admin,
-            collection_config_object,
-            recipient_addr,
-        );
     }
 
     public entry fun set_minting_status(
@@ -193,17 +166,21 @@ module only_on_aptos::only_on_aptos {
         token_components::burn(&collection_signer, token);
     }
 
-    public fun mint_with_admin_impl(
-        admin: &signer,
+    public entry fun mint_to_recipient(
+        collection_config_object: Object<CollectionConfig>,
+        recipient_addr: address,
+    ) acquires CollectionConfig, MetadataConfig {
+        mint_token_to_recipient(collection_config_object, recipient_addr);
+    }
+
+    public fun mint_token_to_recipient(
         collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
     ): Object<Token> acquires CollectionConfig, MetadataConfig {
-        assert_owner(signer::address_of(admin), collection_config_object);
-        mint_impl(admin, collection_config_object, recipient_addr)
+        mint_impl(collection_config_object, recipient_addr)
     }
 
     fun mint_impl(
-        _minter: &signer,
         collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
     ): Object<Token> acquires CollectionConfig, MetadataConfig {
@@ -223,7 +200,7 @@ module only_on_aptos::only_on_aptos {
             collection::name(collection),
             metadata_config.token_description,
             metadata_config.token_name_prefix,
-            utf8(b""), // name_with_index_suffix 
+            utf8(b""), // name_with_index_suffix
             royalty::get(collection),
             uri,
         );
@@ -454,6 +431,6 @@ module only_on_aptos::only_on_aptos {
         collection_config_object: Object<CollectionConfig>,
         recipient_addr: address,
     ): Object<Token> acquires CollectionConfig, MetadataConfig {
-        mint_impl(minter, collection_config_object, recipient_addr)
+        mint_impl(collection_config_object, recipient_addr)
     }
 }
