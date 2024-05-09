@@ -95,6 +95,19 @@ module minter::mint_stage_tests {
     }
 
     #[test(creator = @0x123, user = @0x456, aptos_framework = @0x1)]
+    #[expected_failure(abort_code = 0x1000b, location = minter::mint_stage)]
+    fun exception_when_amount_is_zero(creator: &signer, user: &signer, aptos_framework: &signer) {
+        let now = 100000;
+        init_timestamp(aptos_framework, now);
+
+        let start_time = timestamp::now_seconds() + 3600;
+        let end_time = start_time + 7200;
+        let category = utf8(b"Public sale");
+        let (_, mint_stage_data) = create_mint_stage_data_object(creator, start_time, end_time, category, option::none());
+        mint_stage::assert_active_and_execute(user, mint_stage_data, category, 0);
+    }
+
+    #[test(creator = @0x123, user = @0x456, aptos_framework = @0x1)]
     #[expected_failure(abort_code = 0x30006, location = minter::mint_stage)]
     fun exception_when_user_not_allowlisted(creator: &signer, user: &signer, aptos_framework: &signer) {
         let now = 100000;
