@@ -34,6 +34,9 @@ module minter::mint_stage {
     const EMINT_STAGE_DATA_DOES_NOT_EXIST: u64 = 9;
     /// The mint stage max per user balance is insufficient.
     const EINSUFFICIENT_MAX_PER_USER_BALANCE: u64 = 10;
+    /// The amount of tokens should be greater than zero.
+    const EINSUFFICIENT_AMOUNT: u64 = 11;
+
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct MintStageData has key {
@@ -183,7 +186,7 @@ module minter::mint_stage {
     ) acquires MintStageData {
         let mint_stage = borrow_mut_mint_stage(obj, stage);
         let current_time = timestamp::now_seconds();
-
+        assert!(amount > 0, error::invalid_argument(EINSUFFICIENT_AMOUNT));
         assert!(current_time >= mint_stage.start_time, error::invalid_state(EMINT_STAGE_NOT_STARTED));
         assert!(current_time < mint_stage.end_time, error::invalid_state(EMINT_STAGE_ENDED));
 
