@@ -56,6 +56,7 @@ module only_on_aptos::only_on_aptos {
         collection: Object<Collection>,
         extend_ref: object::ExtendRef,
         ready_to_mint: bool,
+        allowlist: vector<address>, // to allowlist a list of addresses to operate as admin
     }
 
     #[event]
@@ -90,6 +91,7 @@ module only_on_aptos::only_on_aptos {
         token_description: String,
         token_uris: vector<String>,
         token_uris_weights: vector<u64>,
+        allowlist: vector<address>,
         mutable_collection_metadata: bool, // including description, uri, royalty, to make admin life easier
         mutable_token_metadata: bool, // including description, name, properties, uri, to make admin life easier
         tokens_burnable_by_collection_owner: bool,
@@ -107,6 +109,7 @@ module only_on_aptos::only_on_aptos {
             token_description,
             token_uris,
             token_uris_weights,
+            allowlist,
             mutable_collection_metadata,
             mutable_token_metadata,
             tokens_burnable_by_collection_owner,
@@ -242,6 +245,7 @@ module only_on_aptos::only_on_aptos {
         token_description: String,
         token_uris: vector<String>,
         token_uris_weights: vector<u64>,
+        allowlist: vector<address>,
         mutable_collection_metadata: bool,
         mutable_token_metadata: bool,
         tokens_burnable_by_collection_owner: bool,
@@ -303,6 +307,7 @@ module only_on_aptos::only_on_aptos {
             collection,
             extend_ref: object::generate_extend_ref(object_constructor_ref),
             ready_to_mint: false,
+            allowlist,
         });
 
         let collection_config = object::object_from_constructor_ref(object_constructor_ref);
@@ -357,8 +362,9 @@ module only_on_aptos::only_on_aptos {
         );
     }
 
-    fun assert_owner<T: key>(owner: address, object: Object<T>) {
-        assert!(object::owner(object) == owner, error::permission_denied(ENOT_OWNER));
+    fun assert_owner(owner: address, collection_config: Object<CollectionConfig>) acquires CollectionConfig {
+        let collection_config_obj = borrow(collection_config);
+        assert!(object::owner(collection_config) == owner || vector::contains(&collection_config_obj.allowlist, &owner), error::permission_denied(ENOT_OWNER));
     }
 
     inline fun collection_owner_signer(collection_config: &CollectionConfig): signer {
