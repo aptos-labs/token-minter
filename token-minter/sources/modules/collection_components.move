@@ -66,10 +66,10 @@ module minter::collection_components {
         description: String,
     ) acquires CollectionRefs {
         assert!(is_mutable_description(collection), error::permission_denied(EFIELD_NOT_MUTABLE));
-        collection::set_description(
-            option::borrow(&authorized_borrow_refs_mut(collection, collection_owner).mutator_ref),
-            description,
-        );
+        let mutator_ref = &authorized_borrow_refs_mut(collection, collection_owner).mutator_ref;
+        assert!(option::is_some(mutator_ref), error::not_found(EFIELD_NOT_MUTABLE));
+
+        collection::set_description(option::borrow(mutator_ref), description);
     }
 
     public fun set_collection_uri(
@@ -78,7 +78,10 @@ module minter::collection_components {
         uri: String,
     ) acquires CollectionRefs {
         assert!(is_mutable_uri(collection), error::permission_denied(EFIELD_NOT_MUTABLE));
-        collection::set_uri(option::borrow(&authorized_borrow_refs_mut(collection, collection_owner).mutator_ref), uri);
+        let mutator_ref = &authorized_borrow_refs_mut(collection, collection_owner).mutator_ref;
+        assert!(option::is_some(mutator_ref), error::not_found(EFIELD_NOT_MUTABLE));
+
+        collection::set_uri(option::borrow(mutator_ref), uri);
     }
 
     public fun set_collection_royalties(
@@ -87,10 +90,10 @@ module minter::collection_components {
         royalty: royalty::Royalty,
     ) acquires CollectionRefs {
         assert!(is_mutable_royalty(collection), error::permission_denied(EFIELD_NOT_MUTABLE));
-        royalty::update(
-            option::borrow(&authorized_borrow_refs_mut(collection, collection_owner).royalty_mutator_ref),
-            royalty
-        );
+        let royalty_mutator_ref = &authorized_borrow_refs_mut(collection, collection_owner).royalty_mutator_ref;
+        assert!(option::is_some(royalty_mutator_ref), error::not_found(EFIELD_NOT_MUTABLE));
+
+        royalty::update(option::borrow(royalty_mutator_ref), royalty);
     }
 
     /// Force transfer a collection as the collection owner.
@@ -137,14 +140,13 @@ module minter::collection_components {
         });
     }
 
-    #[view]
     /// Can only be called if the `collection_owner` is the owner of the collection.
     public fun collection_object_signer<T: key>(
         collection_owner: &signer,
         collection: Object<T>,
     ): signer acquires CollectionRefs {
         let extend_ref = &authorized_borrow_refs_mut(collection, collection_owner).extend_ref;
-        assert!(option::is_some(extend_ref), ECOLLECTION_NOT_EXTENDABLE);
+        assert!(option::is_some(extend_ref), error::not_found(ECOLLECTION_NOT_EXTENDABLE));
 
         object::generate_signer_for_extending(option::borrow(extend_ref))
     }
