@@ -232,7 +232,6 @@ module minter::token_components {
         };
     }
 
-    #[view]
     /// Can only be called if the `collection_owner` is the owner of the collection the `token` belongs to.
     public fun token_object_signer(collection_owner: &signer, token: Object<Token>): signer acquires TokenRefs {
         let extend_ref = &authorized_borrow_refs_mut(collection_owner, token).extend_ref;
