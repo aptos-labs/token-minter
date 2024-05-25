@@ -411,7 +411,6 @@ module ez_launch::ez_launch {
         vector::length(&borrow(ez_launch_config_obj).available_tokens) == 0
     }
 
-    #[view]
     public fun authorized_collection(config_owner: &signer, ez_launch_config_obj: Object<EZLaunchConfig>): Object<Collection> acquires EZLaunchConfig {
         authorized_borrow(config_owner, ez_launch_config_obj).collection
     }
