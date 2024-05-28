@@ -9,6 +9,7 @@ module minter::collection_components {
 
     use aptos_token_objects::collection;
     use aptos_token_objects::collection::Collection;
+    use aptos_token_objects::property_map;
     use aptos_token_objects::royalty;
     use minter::migration_helper;
 
@@ -25,6 +26,10 @@ module minter::collection_components {
     const ECOLLECTION_NOT_EXTENDABLE: u64 = 4;
     /// The collection does not support forced transfers by collection owner.
     const ECOLLECTION_NOT_TRANSFERABLE_BY_COLLECTION_OWNER: u64 = 5;
+    /// The property map being mutated is not mutable.
+    const EPROPERTIES_NOT_MUTABLE: u64 = 6;
+    /// The property ref has been dropped.
+    const EPROPERTY_REF_DROPPED: u64 = 7;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct CollectionRefs has key {
@@ -36,9 +41,16 @@ module minter::collection_components {
         extend_ref: Option<object::ExtendRef>,
         /// Used to transfer the collection as the collection owner.
         transfer_ref: Option<object::TransferRef>,
+        /// Used to mutate properties
+        property_mutator_ref: Option<property_map::MutatorRef>,
     }
 
     /// This function creates all the refs to extend the collection, mutate the collection and royalties.
+    ///
+    /// The refs are created based on the `CollectionProperties` defined in the `collection_properties` module.
+    /// This method sets the property defaults to true, therefore all refs are created.
+    /// However, the `CollectionProperties` is what defines the rules for mutating the collection.
+    /// To configure the collection properties, the set functions in `collection_properties` function should be called.
     public fun create_refs_and_properties(constructor_ref: &ConstructorRef): Object<CollectionRefs> {
         let collection_signer = &object::generate_signer(constructor_ref);
 
@@ -48,6 +60,7 @@ module minter::collection_components {
             option::some(royalty::generate_mutator_ref(object::generate_extend_ref(constructor_ref))),
             option::some(object::generate_extend_ref(constructor_ref)),
             option::some(object::generate_transfer_ref(constructor_ref)),
+            option::some(property_map::generate_mutator_ref(constructor_ref)),
         );
 
         let properties = create_default_properties(true);
@@ -57,7 +70,7 @@ module minter::collection_components {
     }
 
     fun create_default_properties(value: bool): CollectionProperties {
-        collection_properties::create_uninitialized_properties(value, value, value, value, value, value, value, value, value)
+        collection_properties::create_uninitialized_properties(value, value, value, value, value, value, value, value, value, value)
     }
 
     public fun set_collection_description(
@@ -110,6 +123,72 @@ module minter::collection_components {
         object::transfer_with_ref(linear_transfer_ref, to_addr)
     }
 
+    public fun add_property(
+        collection_owner: &signer,
+        collection: Object<Collection>,
+        key: String,
+        type: String,
+        value: vector<u8>,
+    ) acquires CollectionRefs {
+        assert!(is_mutable_properties(collection), error::permission_denied(EPROPERTIES_NOT_MUTABLE));
+        let property_mutator_ref = &authorized_borrow_refs_mut(collection, collection_owner).property_mutator_ref;
+        assert!(option::is_some(property_mutator_ref), error::not_found(EPROPERTY_REF_DROPPED));
+
+        property_map::add(option::borrow(property_mutator_ref), key, type, value);
+    }
+
+    public fun add_typed_property<V: drop>(
+        collection_owner: &signer,
+        collection: Object<Collection>,
+        key: String,
+        value: V,
+    ) acquires CollectionRefs {
+        assert!(is_mutable_properties(collection), error::permission_denied(EPROPERTIES_NOT_MUTABLE));
+        let property_mutator_ref = &authorized_borrow_refs_mut(collection, collection_owner).property_mutator_ref;
+        assert!(option::is_some(property_mutator_ref), error::not_found(EPROPERTY_REF_DROPPED));
+
+        property_map::add_typed(option::borrow(property_mutator_ref), key, value);
+    }
+
+    public fun remove_property(
+        collection_owner: &signer,
+        collection: Object<Collection>,
+        key: String,
+    ) acquires CollectionRefs {
+        assert!(is_mutable_properties(collection), error::permission_denied(EPROPERTIES_NOT_MUTABLE));
+        let property_mutator_ref = &authorized_borrow_refs_mut(collection, collection_owner).property_mutator_ref;
+        assert!(option::is_some(property_mutator_ref), error::not_found(EPROPERTY_REF_DROPPED));
+
+        property_map::remove(option::borrow(property_mutator_ref), &key);
+    }
+
+    public fun update_property(
+        collection_owner: &signer,
+        collection: Object<Collection>,
+        key: String,
+        type: String,
+        value: vector<u8>,
+    ) acquires CollectionRefs {
+        assert!(is_mutable_properties(collection), error::permission_denied(EPROPERTIES_NOT_MUTABLE));
+        let property_mutator_ref = &authorized_borrow_refs_mut(collection, collection_owner).property_mutator_ref;
+        assert!(option::is_some(property_mutator_ref), error::not_found(EPROPERTY_REF_DROPPED));
+
+        property_map::update(option::borrow(property_mutator_ref), &key, type, value);
+    }
+
+    public fun update_typed_property<V: drop>(
+        collection_owner: &signer,
+        collection: Object<Collection>,
+        key: String,
+        value: V,
+    ) acquires CollectionRefs {
+        assert!(is_mutable_properties(collection), error::permission_denied(EPROPERTIES_NOT_MUTABLE));
+        let property_mutator_ref = &authorized_borrow_refs_mut(collection, collection_owner).property_mutator_ref;
+        assert!(option::is_some(property_mutator_ref), error::not_found(EPROPERTY_REF_DROPPED));
+
+        property_map::update_typed(option::borrow(property_mutator_ref), &key, value);
+    }
+
     inline fun authorized_borrow_refs_mut<T: key>(
         collection: Object<T>,
         collection_owner: &signer
@@ -131,12 +210,14 @@ module minter::collection_components {
         royalty_mutator_ref: Option<royalty::MutatorRef>,
         extend_ref: Option<object::ExtendRef>,
         transfer_ref: Option<object::TransferRef>,
+        property_mutator_ref: Option<property_map::MutatorRef>,
     ) {
         move_to(collection_object_signer, CollectionRefs {
             mutator_ref,
             royalty_mutator_ref,
             extend_ref,
             transfer_ref,
+            property_mutator_ref,
         });
     }
 
@@ -164,6 +245,11 @@ module minter::collection_components {
     #[view]
     public fun is_mutable_uri(obj: Object<Collection>): bool {
         collection_properties::is_mutable_uri(obj)
+    }
+
+    #[view]
+    public fun is_mutable_properties(obj: Object<Collection>): bool {
+        collection_properties::is_mutable_properties(obj)
     }
 
     #[view]
@@ -234,6 +320,19 @@ module minter::collection_components {
         transfer_ref
     }
 
+    public fun migrate_out_property_mutator_ref(
+        migration_signer: &signer,
+        collection_owner: &signer,
+        collection: Object<Collection>,
+    ): Option<property_map::MutatorRef> acquires CollectionRefs {
+        migration_helper::assert_migration_object_signer(migration_signer);
+
+        let refs = authorized_borrow_refs_mut(collection, collection_owner);
+        let property_mutator_ref = extract_ref_if_present(&mut refs.property_mutator_ref);
+        destroy_collection_refs_if_all_refs_migrated(refs, object::object_address(&collection));
+        property_mutator_ref
+    }
+
     fun extract_ref_if_present<T: drop + store>(ref: &mut Option<T>): Option<T> {
         if (option::is_some(ref)) {
             option::some(option::extract(ref))
@@ -254,6 +353,7 @@ module minter::collection_components {
                 royalty_mutator_ref: _,
                 extend_ref: _,
                 transfer_ref: _,
+                property_mutator_ref: _,
             } = move_from<CollectionRefs>(collection_address);
         }
     }

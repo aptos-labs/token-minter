@@ -463,14 +463,14 @@ module minter::token_components_tests {
         let (_, token) = create_test_token_with_refs_and_collection(creator);
         let migration_object_signer = create_migration_object_signer(migration);
 
-        // Remove property mutator ref from `TokenRefs`
-        token_components::migrate_out_property_mutator_ref(&migration_object_signer, creator, token);
-
         let property_name = utf8(b"u8");
         let property_type = utf8(b"u8");
         let initial_value = vector[10];
         // Add property before dropping the ref
         token_components::add_property(creator, token, property_name, property_type, initial_value);
+
+        // Remove property mutator ref from `TokenRefs`
+        token_components::migrate_out_property_mutator_ref(&migration_object_signer, creator, token);
 
         let new_value = vector[50];
         token_components::update_property(creator, token, property_name, property_type, new_value);

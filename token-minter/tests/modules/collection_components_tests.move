@@ -1,12 +1,14 @@
 #[test_only]
 module minter::collection_components_tests {
     use std::option::Self;
+    use std::string;
     use std::string::utf8;
     use aptos_framework::object::{Self, ConstructorRef, Object};
     use aptos_framework::signer;
 
     use aptos_token_objects::collection;
     use aptos_token_objects::collection::Collection;
+    use aptos_token_objects::property_map;
     use aptos_token_objects::royalty;
     use minter::migration_utils::create_migration_object_signer;
 
@@ -210,12 +212,214 @@ module minter::collection_components_tests {
         collection_components::transfer_as_owner(creator, collection, signer::address_of(user));
     }
 
+    #[test(creator = @0x123)]
+    fun test_add_remove_update_property_map_functions(creator: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        assert!(collection_components::is_mutable_properties(collection), 0);
+
+        let property_name = utf8(b"u8");
+        let property_type = utf8(b"u8");
+        collection_components::add_property(creator, collection, property_name, property_type, vector [10]);
+        assert!(property_map::read_u8(&collection, &property_name) == 10, 0);
+
+        collection_components::remove_property(creator, collection, property_name);
+        assert!(!property_map::contains_key(&collection, &property_name), 0);
+
+        collection_components::add_typed_property<u8>(creator, collection, property_name, 20);
+        assert!(property_map::read_u8(&collection, &property_name) == 20, 0);
+
+        collection_components::update_property(creator, collection, property_name, property_type, vector[30]);
+        assert!(property_map::read_u8(&collection, &property_name) == 30, 0);
+
+        collection_components::update_typed_property<u8>(creator, collection, property_name, 40);
+        assert!(property_map::read_u8(&collection, &property_name) == 40, 0);
+    }
+
+    #[test(creator = @0x123, user = @0x456)]
+    #[expected_failure(abort_code = 327682, location = minter::collection_components)]
+    fun test_add_property_fails_as_non_collection_owner(creator: &signer, user: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        let property_name = string::utf8(b"u8");
+        let property_type = string::utf8(b"u8");
+        collection_components::add_property(user, collection, property_name, property_type, vector [10]);
+    }
+
+    #[test(creator = @0x123)]
+    #[expected_failure(abort_code = 327686, location = minter::collection_components)]
+    fun test_set_non_mutable_add_property_fails(creator: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        collection_properties::set_mutable_properties(creator, collection, false);
+
+        let property_name = string::utf8(b"u8");
+        let property_type = string::utf8(b"u8");
+        collection_components::add_property(creator, collection, property_name, property_type, vector [10]);
+    }
+
+    #[test(creator = @0x123, user = @0x456)]
+    #[expected_failure(abort_code = 327682, location = minter::collection_components)]
+    fun test_add_typed_property_fails_as_non_collection_owner(creator: &signer, user: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        let property_name = string::utf8(b"u8");
+        collection_components::add_typed_property<u8>(user, collection, property_name, 10);
+    }
+
+    #[test(creator = @0x123)]
+    #[expected_failure(abort_code = 327686, location = minter::collection_components)]
+    fun test_set_non_mutable_add_typed_property_fails(creator: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        collection_properties::set_mutable_properties(creator, collection, false);
+
+        let property_name = string::utf8(b"u8");
+        collection_components::add_typed_property<u8>(creator, collection, property_name, 10);
+    }
+
+    #[test(creator = @0x123, user = @0x456)]
+    #[expected_failure(abort_code = 327682, location = minter::collection_components)]
+    fun test_remove_property_fails_as_non_collection_owner(creator: &signer, user: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        let property_name = string::utf8(b"u8");
+        collection_components::add_typed_property<u8>(creator, collection, property_name, 10);
+
+        collection_components::remove_property(user, collection, property_name);
+    }
+
+    #[test(creator = @0x123)]
+    #[expected_failure(abort_code = 327686, location = minter::collection_components)]
+    fun test_set_non_mutable_remove_property_fails(creator: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+
+        collection_properties::set_mutable_properties(creator, collection, false);
+        let property_name = string::utf8(b"u8");
+        collection_components::add_typed_property<u8>(creator, collection, property_name, 10);
+        collection_components::remove_property(creator, collection, property_name);
+    }
+
+    #[test(creator = @0x123, user = @0x456)]
+    #[expected_failure(abort_code = 327682, location = minter::collection_components)]
+    fun test_update_property_fails_as_non_collection_owner(creator: &signer, user: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        let property_name = string::utf8(b"u8");
+        let property_type = string::utf8(b"u8");
+        collection_components::add_property(creator, collection, property_name, property_type, vector[10]);
+
+        let new_value = 20;
+        collection_components::update_property(user, collection, property_name, property_type, vector[new_value]);
+    }
+
+    #[test(creator = @0x123)]
+    #[expected_failure(abort_code = 327686, location = minter::collection_components)]
+    fun test_set_non_mutable_update_property_fails(creator: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        collection_properties::set_mutable_properties(creator, collection, false);
+
+        let property_name = string::utf8(b"u8");
+        let property_type = string::utf8(b"u8");
+        collection_components::add_property(creator, collection, property_name, property_type, vector[10]);
+
+        let new_value = 20;
+        collection_components::update_property(creator, collection, property_name, property_type, vector[new_value]);
+    }
+
+    #[test(creator = @0x123, user = @0x456)]
+    #[expected_failure(abort_code = 327682, location = minter::collection_components)]
+    fun test_update_typed_property_fails_as_non_collection_owner(creator: &signer, user: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        let property_name = string::utf8(b"u8");
+        collection_components::add_typed_property<u8>(creator, collection, property_name, 10);
+
+        let new_value = 20;
+        collection_components::update_typed_property<u8>(user, collection, property_name, new_value);
+    }
+
+    #[test(creator = @0x123)]
+    #[expected_failure(abort_code = 327686, location = minter::collection_components)]
+    fun test_set_non_mutable_update_typed_property_fails(creator: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        collection_properties::set_mutable_properties(creator, collection, false);
+
+        let property_name = string::utf8(b"u8");
+        collection_components::add_typed_property<u8>(creator, collection, property_name, 10);
+
+        let new_value = 20;
+        collection_components::update_typed_property<u8>(creator, collection, property_name, new_value);
+    }
+
+    #[test(creator = @0x123, user = @456)]
+    #[expected_failure(abort_code = 327682, location = minter::collection_components)]
+    fun test_non_collection_owner_can_update_collection(creator: &signer, user: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        let user_addr = signer::address_of(user);
+        let property_name = string::utf8(b"u8");
+        let property_type = string::utf8(b"u8");
+        let initial_value = vector[10];
+
+        // Collection owner adds a property
+        collection_components::add_property(creator, collection, property_name, property_type, initial_value);
+        collection_components::transfer_as_owner(creator, collection, user_addr);
+
+        // This should fail as only `collection owner` can update token - which is the user as it got transferred above.
+        let new_value = vector[50];
+        collection_components::update_property(creator, collection, property_name, property_type, new_value);
+    }
+
+    #[test(creator = @0x123, migration = @migration)]
+    #[expected_failure(abort_code = 393223, location = minter::collection_components)]
+    fun test_add_property_fails_when_property_mutator_ref_dropped(creator: &signer, migration: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        let migration_object_signer = create_migration_object_signer(migration);
+
+        // Remove property mutator ref from `CollectionRefs`
+        collection_components::migrate_out_property_mutator_ref(&migration_object_signer, creator, collection);
+
+        let property_name = utf8(b"u8");
+        let property_type = utf8(b"u8");
+        let value = vector[10];
+        collection_components::add_property(creator, collection, property_name, property_type, value);
+    }
+
+    #[test(creator = @0x123, migration = @migration)]
+    #[expected_failure(abort_code = 393223, location = minter::collection_components)]
+    fun test_update_property_fails_when_property_mutator_ref_dropped(creator: &signer, migration: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        let migration_object_signer = create_migration_object_signer(migration);
+
+        let property_name = utf8(b"u8");
+        let property_type = utf8(b"u8");
+        let initial_value = vector[10];
+        // Add property before dropping the ref
+        collection_components::add_property(creator, collection, property_name, property_type, initial_value);
+
+        // Remove property mutator ref from `CollectionRefs`
+        collection_components::migrate_out_property_mutator_ref(&migration_object_signer, creator, collection);
+
+        let new_value = vector[50];
+        collection_components::update_property(creator, collection, property_name, property_type, new_value);
+    }
+
+    #[test(creator = @0x123, migration = @migration)]
+    #[expected_failure(abort_code = 393223, location = minter::collection_components)]
+    fun test_remove_property_fails_when_property_mutator_ref_dropped(creator: &signer, migration: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        let migration_object_signer = create_migration_object_signer(migration);
+
+        let property_name = utf8(b"u8");
+        let property_type = utf8(b"u8");
+        let value = vector[10];
+        collection_components::add_property(creator, collection, property_name, property_type, value);
+
+        // Remove property mutator ref from `CollectionRefs`
+        collection_components::migrate_out_property_mutator_ref(&migration_object_signer, creator, collection);
+
+        collection_components::remove_property(creator, collection, property_name);
+    }
+
     #[test_only]
     fun create_test_collection_with_refs_and_properties(
         creator: &signer,
     ): (ConstructorRef, Object<CollectionRefs>, Object<Collection>) {
         let collection_constructor = collection_utils::create_unlimited_collection(creator);
         let refs = minter::collection_components::create_refs_and_properties(&collection_constructor);
+        property_map::init(&collection_constructor, property_map::prepare_input(vector[], vector[], vector[]));
         let collection = object::object_from_constructor_ref(&collection_constructor);
         (collection_constructor, refs, collection)
     }
