@@ -26,6 +26,8 @@ module minter::collection_properties {
         mutable_description: CollectionProperty,
         /// Determines if the collection owner can mutate the collection_properties's uri
         mutable_uri: CollectionProperty,
+        /// Determines if the collection owner can mutate the collection's properties
+        mutable_properties: CollectionProperty,
         /// Determines if the collection owner can mutate token descriptions
         mutable_token_description: CollectionProperty,
         /// Determines if the collection owner can mutate token names
@@ -47,6 +49,7 @@ module minter::collection_properties {
     struct InitCollectionProperties has drop, store {
         mutable_description: CollectionProperty,
         mutable_uri: CollectionProperty,
+        mutable_properties: CollectionProperty,
         mutable_token_description: CollectionProperty,
         mutable_token_name: CollectionProperty,
         mutable_token_properties: CollectionProperty,
@@ -68,6 +71,7 @@ module minter::collection_properties {
     public fun create_uninitialized_properties(
         mutable_description: bool,
         mutable_uri: bool,
+        mutable_properties: bool,
         mutable_token_description: bool,
         mutable_token_name: bool,
         mutable_token_properties: bool,
@@ -79,6 +83,7 @@ module minter::collection_properties {
         CollectionProperties {
             mutable_description: create_property(mutable_description, false),
             mutable_uri: create_property(mutable_uri, false),
+            mutable_properties: create_property(mutable_properties, false),
             mutable_token_description: create_property(mutable_token_description, false),
             mutable_token_name: create_property(mutable_token_name, false),
             mutable_token_properties: create_property(mutable_token_properties, false),
@@ -100,6 +105,7 @@ module minter::collection_properties {
         event::emit(InitCollectionProperties {
             mutable_description: properties.mutable_description,
             mutable_uri: properties.mutable_uri,
+            mutable_properties: properties.mutable_properties,
             mutable_token_description: properties.mutable_token_description,
             mutable_token_name: properties.mutable_token_name,
             mutable_token_properties: properties.mutable_token_properties,
@@ -119,6 +125,15 @@ module minter::collection_properties {
     ) acquires CollectionProperties {
         let property = &mut authorized_borrow_mut(collection_owner, obj).mutable_description;
         set_property(property, mutable_description, string::utf8(b"mutable_description"));
+    }
+
+    public fun set_mutable_properties<T: key>(
+        collection_owner: &signer,
+        obj: Object<T>,
+        mutable_properties: bool,
+    ) acquires CollectionProperties {
+        let property = &mut authorized_borrow_mut(collection_owner, obj).mutable_properties;
+        set_property(property, mutable_properties, string::utf8(b"mutable_properties"));
     }
 
     public fun set_mutable_uri<T: key>(
@@ -240,6 +255,10 @@ module minter::collection_properties {
         (properties.mutable_uri.value, properties.mutable_uri.initialized)
     }
 
+    public fun mutable_properties(properties: &CollectionProperties): (bool, bool) {
+        (properties.mutable_properties.value, properties.mutable_properties.initialized)
+    }
+
     public fun mutable_token_description(properties: &CollectionProperties): (bool, bool) {
         (properties.mutable_token_description.value, properties.mutable_token_description.initialized)
     }
@@ -281,6 +300,11 @@ module minter::collection_properties {
     #[view]
     public fun is_mutable_uri<T: key>(obj: Object<T>): bool acquires CollectionProperties {
         borrow(obj).mutable_uri.value
+    }
+
+    #[view]
+    public fun is_mutable_properties<T: key>(obj: Object<T>): bool acquires CollectionProperties {
+        borrow(obj).mutable_properties.value
     }
 
     #[view]
@@ -341,6 +365,7 @@ module minter::collection_properties {
         let CollectionProperties {
             mutable_description: _,
             mutable_uri: _,
+            mutable_properties: _,
             mutable_token_description: _,
             mutable_token_name: _,
             mutable_token_properties: _,
