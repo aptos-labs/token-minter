@@ -68,11 +68,9 @@ module ez_launch::ez_launch_with_stages {
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct EZLaunchConfig has key {
         extend_ref: object::ExtendRef,
-        // creator owned object extend ref
         collection: Object<Collection>,
         fees: SimpleMap<String, vector<CoinPayment<AptosCoin>>>,
         available_tokens: vector<Object<Token>>,
-        // to be minted token
         random_mint: bool,
         is_soulbound: bool,
         ready_to_mint: bool,
@@ -96,19 +94,9 @@ module ez_launch::ez_launch_with_stages {
         royalty_denominator: Option<u64>,
     ) {
         create_collection_impl(
-            creator,
-            description,
-            name,
-            uri,
-            mutable_collection_metadata,
-            mutable_token_metadata,
-            random_mint,
-            is_soulbound,
-            tokens_burnable_by_collection_owner,
-            tokens_transferrable_by_collection_owner,
-            max_supply,
-            royalty_numerator,
-            royalty_denominator,
+            creator, description, name, uri, mutable_collection_metadata, mutable_token_metadata,
+            random_mint, is_soulbound, tokens_burnable_by_collection_owner, tokens_transferrable_by_collection_owner,
+            max_supply, royalty_numerator, royalty_denominator,
         );
     }
 
@@ -149,7 +137,7 @@ module ez_launch::ez_launch_with_stages {
         let object_signer = object::generate_signer(object_constructor_ref);
         let royalty = royalty(&mut royalty_numerator, &mut royalty_denominator, creator_addr);
 
-        let collection = create_collection_internal(
+        let collection = create_collection_and_refs(
             &object_signer,
             description,
             name,
@@ -182,7 +170,7 @@ module ez_launch::ez_launch_with_stages {
 
     /// Add a mint stage to the launch configuration.
     /// `no_allowlist_max_mint` is the maximum number of tokens that can be minted in this stage without an allowlist.
-    public fun add_stage(
+    public entry fun add_stage(
         creator: &signer,
         config: Object<EZLaunchConfig>,
         stage_category: String,
@@ -200,7 +188,7 @@ module ez_launch::ez_launch_with_stages {
     }
 
     /// Add mint fee for a mint stage. Stage should be the same as the mint stage.
-    public fun add_fee(
+    public entry fun add_fee(
         creator: &signer,
         config: Object<EZLaunchConfig>,
         mint_fee: u64,
@@ -301,7 +289,7 @@ module ez_launch::ez_launch_with_stages {
         };
     }
 
-    public fun pre_mint_token(
+    fun pre_mint_token(
         creator: &signer,
         config: Object<EZLaunchConfig>,
         description: String,
@@ -389,7 +377,7 @@ module ez_launch::ez_launch_with_stages {
         });
     }
 
-    fun create_collection_internal(
+    fun create_collection_and_refs(
         object_signer: &signer,
         description: String,
         name: String,
