@@ -44,13 +44,14 @@ module ez_launch::ez_launch_with_stages_tests {
         let stage_category = utf8(b"Public Sale");
         let start_time = now - 3600;
         let end_time = now + 7200;
-        let no_allowlist_max_mint = option::none();
-        ez_launch_with_stages::add_stage(creator, ez_launch_config_obj, stage_category, start_time, end_time, no_allowlist_max_mint);
+        ez_launch_with_stages::add_stage(creator, ez_launch_config_obj, stage_category, start_time, end_time);
 
-        let stages = mint_stage::stages(ez_launch_config_obj);
+        let collection = ez_launch_with_stages::collection(ez_launch_config_obj);
+        let stages = mint_stage::stages(collection);
         assert!(vector::contains(&stages, &stage_category), 1);
 
-        ez_launch_with_stages::add_to_allowlist(creator, ez_launch_config_obj, stage_category, vector[user_addr], vector[1]);
+        let stage_index = mint_stage::find_mint_stage_index_by_name(collection, stage_category);
+        ez_launch_with_stages::add_to_allowlist(creator, ez_launch_config_obj, stage_index, vector[user_addr], vector[1]);
 
         let mint_fee = 100;
         ez_launch_with_stages::add_fee(creator, ez_launch_config_obj, mint_fee, creator_addr, stage_category);
@@ -79,16 +80,17 @@ module ez_launch::ez_launch_with_stages_tests {
         let stage_category = utf8(b"Presale");
         let start_time = now + 3600;
         let end_time = now + 7200;
-        let no_allowlist_max_mint = option::none();
-        ez_launch_with_stages::add_stage(creator, ez_launch_config_obj, stage_category, start_time, end_time, no_allowlist_max_mint);
+        ez_launch_with_stages::add_stage(creator, ez_launch_config_obj, stage_category, start_time, end_time);
 
         let user_address = signer::address_of(user);
-        ez_launch_with_stages::add_to_allowlist(creator, ez_launch_config_obj, stage_category, vector[user_address], vector[1]);
+        let collection = ez_launch_with_stages::collection(ez_launch_config_obj);
+        let stage_index = mint_stage::find_mint_stage_index_by_name(collection, stage_category);
+        ez_launch_with_stages::add_to_allowlist(creator, ez_launch_config_obj, stage_index, vector[user_address], vector[1]);
 
-        assert!(mint_stage::is_allowlisted(ez_launch_config_obj, stage_category, user_address), 1);
+        assert!(mint_stage::is_allowlisted(collection, stage_index, user_address), 1);
 
-        ez_launch_with_stages::remove_from_allowlist(creator, ez_launch_config_obj, stage_category, vector[user_address]);
-        assert!(!mint_stage::is_allowlisted(ez_launch_config_obj, stage_category, user_address), 1);
+        ez_launch_with_stages::remove_from_allowlist(creator, ez_launch_config_obj, stage_index, vector[user_address]);
+        assert!(!mint_stage::is_allowlisted(collection, stage_index, user_address), 1);
     }
 
     #[test(creator = @0x1, user = @0x2, aptos_framework = @0x1)]
@@ -113,8 +115,7 @@ module ez_launch::ez_launch_with_stages_tests {
         let stage_category = utf8(b"Public Sale");
         let start_time = now + 3600;
         let end_time = now + 7200;
-        let no_allowlist_max_mint = option::some(2);
-        ez_launch_with_stages::add_stage(creator, ez_launch_config_obj, stage_category, start_time, end_time, no_allowlist_max_mint);
+        ez_launch_with_stages::add_stage(creator, ez_launch_config_obj, stage_category, start_time, end_time);
 
         // Add fee
         let mint_fee = 100;
