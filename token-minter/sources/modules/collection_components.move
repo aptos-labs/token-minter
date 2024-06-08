@@ -189,17 +189,17 @@ module minter::collection_components {
         property_map::update_typed(option::borrow(property_mutator_ref), &key, value);
     }
 
-    inline fun authorized_borrow_refs_mut<T: key>(
-        collection: Object<T>,
+    inline fun authorized_borrow_refs_mut(
+        collection: Object<Collection>,
         collection_owner: &signer
     ): &mut CollectionRefs {
         assert_owner(signer::address_of(collection_owner), collection);
         borrow_global_mut<CollectionRefs>(collection_refs_address(collection))
     }
 
-    inline fun assert_owner<T: key>(collection_owner: address, obj: Object<T>) {
+    inline fun assert_owner(collection_owner: address, collection: Object<Collection>) {
         assert!(
-            object::owner(obj) == collection_owner,
+            object::owner(collection) == collection_owner,
             error::permission_denied(ENOT_OBJECT_OWNER),
         );
     }
@@ -222,9 +222,9 @@ module minter::collection_components {
     }
 
     /// Can only be called if the `collection_owner` is the owner of the collection.
-    public fun collection_object_signer<T: key>(
+    public fun collection_object_signer(
         collection_owner: &signer,
-        collection: Object<T>,
+        collection: Object<Collection>,
     ): signer acquires CollectionRefs {
         let extend_ref = &authorized_borrow_refs_mut(collection, collection_owner).extend_ref;
         assert!(option::is_some(extend_ref), error::not_found(ECOLLECTION_NOT_EXTENDABLE));
@@ -358,7 +358,7 @@ module minter::collection_components {
         }
     }
 
-    fun collection_refs_address<T: key>(collection: Object<T>): address {
+    fun collection_refs_address(collection: Object<Collection>): address {
         let collection_address = object::object_address(&collection);
         assert!(
             collection_refs_exist(collection_address),
