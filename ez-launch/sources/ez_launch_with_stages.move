@@ -79,7 +79,7 @@ module ez_launch::ez_launch_with_stages {
     // ================================= Entry Functions ================================= //
 
     public entry fun create_collection(
-        creator: &signer,
+        owner: &signer,
         description: String,
         name: String,
         uri: String,
@@ -94,21 +94,21 @@ module ez_launch::ez_launch_with_stages {
         royalty_denominator: Option<u64>,
     ) {
         create_collection_impl(
-            creator, description, name, uri, mutable_collection_metadata, mutable_token_metadata,
+            owner, description, name, uri, mutable_collection_metadata, mutable_token_metadata,
             random_mint, is_soulbound, tokens_burnable_by_collection_owner, tokens_transferrable_by_collection_owner,
             max_supply, royalty_numerator, royalty_denominator,
         );
     }
 
     public entry fun pre_mint_tokens(
-        creator: &signer,
+        owner: &signer,
         config: Object<EZLaunchConfig>,
         token_names: vector<String>, // not provided by creator, we could parse from metadata json file
         token_uris: vector<String>, // not provided by creator, we could parse from metadata json file
         token_descriptions: vector<String>, // not provided by creator, we could parse from metadata json file
         num_tokens: u64,
     ) acquires EZLaunchConfig {
-        pre_mint_tokens_impl(creator, config, token_names, token_uris, token_descriptions, num_tokens)
+        pre_mint_tokens_impl(owner, config, token_names, token_uris, token_descriptions, num_tokens)
     }
 
     public entry fun mint(minter: &signer, config: Object<EZLaunchConfig>, amount: u64) acquires EZLaunchConfig {
@@ -118,7 +118,7 @@ module ez_launch::ez_launch_with_stages {
     // ================================= Helpers ================================= //
 
     public fun create_collection_impl(
-        creator: &signer,
+        owner: &signer,
         description: String,
         name: String,
         uri: String,
@@ -132,13 +132,13 @@ module ez_launch::ez_launch_with_stages {
         royalty_numerator: Option<u64>,
         royalty_denominator: Option<u64>,
     ): Object<EZLaunchConfig> {
-        let creator_addr = signer::address_of(creator);
+        let creator_addr = signer::address_of(owner);
         let object_constructor_ref = &object::create_object(creator_addr);
-        let object_signer = object::generate_signer(object_constructor_ref);
+        let object_signer = &object::generate_signer(object_constructor_ref);
         let royalty = royalty(&mut royalty_numerator, &mut royalty_denominator, creator_addr);
 
         let collection = create_collection_and_refs(
-            &object_signer,
+            object_signer,
             description,
             name,
             uri,
@@ -147,7 +147,7 @@ module ez_launch::ez_launch_with_stages {
         );
 
         configure_collection_and_token_properties(
-            &object_signer,
+            object_signer,
             collection,
             mutable_collection_metadata,
             mutable_token_metadata,
@@ -155,7 +155,7 @@ module ez_launch::ez_launch_with_stages {
             tokens_transferrable_by_collection_owner,
         );
 
-        move_to(&object_signer, EZLaunchConfig {
+        move_to(object_signer, EZLaunchConfig {
             extend_ref: object::generate_extend_ref(object_constructor_ref),
             collection,
             available_tokens: vector[],
@@ -171,31 +171,26 @@ module ez_launch::ez_launch_with_stages {
     /// Add a mint stage to the launch configuration.
     /// `no_allowlist_max_mint` is the maximum number of tokens that can be minted in this stage without an allowlist.
     public entry fun add_stage(
-        creator: &signer,
+        owner: &signer,
         config: Object<EZLaunchConfig>,
         stage_category: String,
         start_time: u64,
         end_time: u64,
-        no_allowlist_max_mint: Option<u64>,
     ) acquires EZLaunchConfig {
-        mint_stage::create(
-            &authorized_config_signer(creator, config),
-            start_time,
-            end_time,
-            stage_category,
-            no_allowlist_max_mint,
-        );
+        let ez_launch_signer = &authorized_config_signer(owner, config);
+        let collection_signer = &collection_components::collection_object_signer(ez_launch_signer, borrow(config).collection);
+        mint_stage::create(collection_signer, stage_category, start_time, end_time);
     }
 
     /// Add mint fee for a mint stage. Stage should be the same as the mint stage.
     public entry fun add_fee(
-        creator: &signer,
+        owner: &signer,
         config: Object<EZLaunchConfig>,
         mint_fee: u64,
         destination: address,
         stage: String,
     ) acquires EZLaunchConfig {
-        let config = authorized_borrow_mut(creator, config);
+        let config = authorized_borrow_mut(owner, config);
         let fee = coin_payment::create<AptosCoin>(mint_fee, destination, stage);
         if (simple_map::contains_key(&config.fees, &stage)) {
             let fees = simple_map::borrow_mut(&mut config.fees, &stage);
@@ -209,52 +204,66 @@ module ez_launch::ez_launch_with_stages {
     public entry fun add_to_allowlist(
         owner: &signer,
         config: Object<EZLaunchConfig>,
-        stage: String,
+        stage_index: u64,
         addrs: vector<address>,
         amounts: vector<u64>,
-    ) {
+    ) acquires EZLaunchConfig {
         let addrs_length = vector::length(&addrs);
         assert!(addrs_length == vector::length(&amounts), EINVALID_ARGUMENTS);
 
+        let ez_launch_signer = &authorized_config_signer(owner, config);
         for (i in 0..addrs_length) {
             let addr = *vector::borrow(&addrs, i);
             let amount = *vector::borrow(&amounts, i);
-            mint_stage::add_to_allowlist(owner, config, stage, addr, amount);
+            mint_stage::add_to_allowlist(ez_launch_signer, borrow(config).collection, stage_index, addr, amount);
         };
     }
 
     public entry fun remove_from_allowlist(
         owner: &signer,
         config: Object<EZLaunchConfig>,
-        stage: String,
+        stage_index: u64,
         addrs: vector<address>,
-    ) {
+    ) acquires EZLaunchConfig {
+        let ez_launch_signer = &authorized_config_signer(owner, config);
         for (i in 0..vector::length(&addrs)) {
             let addr = *vector::borrow(&addrs, i);
-            mint_stage::remove_from_allowlist(owner, config, stage, addr);
+            mint_stage::remove_from_allowlist(ez_launch_signer, borrow(config).collection, stage_index, addr);
         };
     }
 
     public entry fun repopulate_allowlist(
         owner: &signer,
         config: Object<EZLaunchConfig>,
-        stage: String,
+        stage_index: u64,
         addrs: vector<address>,
         amounts: vector<u64>,
-    ) {
+    ) acquires EZLaunchConfig {
         let addrs_length = vector::length(&addrs);
         assert!(addrs_length == vector::length(&amounts), EINVALID_ARGUMENTS);
 
-        mint_stage::remove_everyone_from_allowlist(owner, config, stage);
+        let ez_launch_signer = &authorized_config_signer(owner, config);
+        mint_stage::clear_allowlist(ez_launch_signer, borrow(config).collection, stage_index);
+
         for (i in 0..addrs_length) {
             let addr = *vector::borrow(&addrs, i);
             let amount = *vector::borrow(&amounts, i);
-            mint_stage::add_to_allowlist(owner, config, stage, addr, amount);
+            mint_stage::add_to_allowlist(ez_launch_signer, borrow(config).collection, stage_index, addr, amount);
         };
     }
 
+    public entry fun set_public_stage_max_per_user(
+        owner: &signer,
+        config: Object<EZLaunchConfig>,
+        stage_index: u64,
+        max_per_user: u64,
+    ) acquires EZLaunchConfig {
+        let ez_launch_signer = &authorized_config_signer(owner, config);
+        mint_stage::set_public_stage_max_per_user(ez_launch_signer, borrow(config).collection, stage_index, max_per_user);
+    }
+
     public fun pre_mint_tokens_impl(
-        creator: &signer,
+        owner: &signer,
         config: Object<EZLaunchConfig>,
         token_names: vector<String>,
         token_uris: vector<String>,
@@ -278,7 +287,7 @@ module ez_launch::ez_launch_with_stages {
         let length = vector::length(&token_names);
         while (i < length) {
             let token = pre_mint_token(
-                creator,
+                owner,
                 config,
                 *vector::borrow(&token_descriptions, i),
                 *vector::borrow(&token_names, i),
@@ -332,11 +341,12 @@ module ez_launch::ez_launch_with_stages {
         assert!(length > 0, error::permission_denied(ETOKENS_ALL_MINTED));
 
         // Check mint stages configured, in this example, we execute the earliest stage.
-        let stage = &mint_stage::execute_earliest_stage(minter, config_obj, amount);
-        assert!(option::is_some(stage), ENO_ACTIVE_STAGES);
+        let stage_index = &mint_stage::execute_earliest_stage(minter, config.collection, amount);
+        assert!(option::is_some(stage_index), ENO_ACTIVE_STAGES);
 
         // After stage has been executed, take fee payments from `minter` prior to minting.
-        execute_payment(minter, &config.fees, option::borrow(stage));
+        let mint_stage = mint_stage::find_mint_stage_by_index(config.collection, *option::borrow(stage_index));
+        execute_payment(minter, &config.fees, &mint_stage::mint_stage_name(mint_stage));
 
         let token = if (config.random_mint) {
             let random_index = timestamp::now_seconds() % length;
@@ -361,6 +371,7 @@ module ez_launch::ez_launch_with_stages {
         object::generate_signer_for_extending(&config.extend_ref)
     }
 
+    /// Unauthorized signer, to be used for on demand minting
     fun config_signer(config: Object<EZLaunchConfig>): signer acquires EZLaunchConfig {
         let config = borrow(config);
         object::generate_signer_for_extending(&config.extend_ref)
@@ -481,6 +492,11 @@ module ez_launch::ez_launch_with_stages {
     #[view]
     public fun minting_ended(config: Object<EZLaunchConfig>): bool acquires EZLaunchConfig {
         vector::length(&borrow(config).available_tokens) == 0
+    }
+
+    #[view]
+    public fun collection(config: Object<EZLaunchConfig>): Object<Collection> acquires EZLaunchConfig {
+        borrow(config).collection
     }
 
     public fun authorized_collection(
