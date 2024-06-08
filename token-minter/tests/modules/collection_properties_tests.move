@@ -1,6 +1,8 @@
 #[test_only]
 module minter::collection_properties_tests {
+    use aptos_framework::object;
     use aptos_framework::object::{ConstructorRef, Object};
+    use aptos_token_objects::collection::Collection;
 
     use minter::collection_properties;
     use minter::collection_properties::CollectionProperties;
@@ -154,11 +156,12 @@ module minter::collection_properties_tests {
     fun create_collection_with_default_properties(
         creator: &signer,
         value: bool,
-    ): (ConstructorRef, Object<CollectionProperties>) {
+    ): (ConstructorRef, Object<Collection>) {
         let props = default_properties(value);
         let constructor_ref = collection_utils::create_unlimited_collection(creator);
         let properties_object = collection_properties::init(&constructor_ref, props);
-        (constructor_ref, properties_object)
+        let collection = object::convert(properties_object);
+        (constructor_ref, collection)
     }
 
     fun default_properties(value: bool): CollectionProperties {

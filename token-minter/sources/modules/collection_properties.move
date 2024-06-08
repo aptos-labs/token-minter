@@ -6,6 +6,7 @@ module minter::collection_properties {
     use std::string::String;
     use aptos_framework::event;
     use aptos_framework::object::{Self, ConstructorRef, Object};
+    use aptos_token_objects::collection::Collection;
     use minter::migration_helper;
 
     /// Collection properties does not exist on this object.
@@ -118,84 +119,84 @@ module minter::collection_properties {
         object::object_from_constructor_ref(constructor_ref)
     }
 
-    public fun set_mutable_description<T: key>(
+    public fun set_mutable_description(
         collection_owner: &signer,
-        obj: Object<T>,
+        collection: Object<Collection>,
         mutable_description: bool,
     ) acquires CollectionProperties {
-        let property = &mut authorized_borrow_mut(collection_owner, obj).mutable_description;
+        let property = &mut authorized_borrow_mut(collection_owner, collection).mutable_description;
         set_property(property, mutable_description, string::utf8(b"mutable_description"));
     }
 
-    public fun set_mutable_properties<T: key>(
+    public fun set_mutable_properties(
         collection_owner: &signer,
-        obj: Object<T>,
+        collection: Object<Collection>,
         mutable_properties: bool,
     ) acquires CollectionProperties {
-        let property = &mut authorized_borrow_mut(collection_owner, obj).mutable_properties;
+        let property = &mut authorized_borrow_mut(collection_owner, collection).mutable_properties;
         set_property(property, mutable_properties, string::utf8(b"mutable_properties"));
     }
 
-    public fun set_mutable_uri<T: key>(
+    public fun set_mutable_uri(
         collection_owner: &signer,
-        obj: Object<T>,
+        collection: Object<Collection>,
         mutable_uri: bool,
     ) acquires CollectionProperties {
-        let property = &mut authorized_borrow_mut(collection_owner, obj).mutable_uri;
+        let property = &mut authorized_borrow_mut(collection_owner, collection).mutable_uri;
         set_property(property, mutable_uri, string::utf8(b"mutable_uri"));
     }
 
-    public fun set_mutable_token_description<T: key>(
+    public fun set_mutable_token_description(
         collection_owner: &signer,
-        obj: Object<T>,
+        collection: Object<Collection>,
         mutable_token_description: bool,
     ) acquires CollectionProperties {
-        let property = &mut authorized_borrow_mut(collection_owner, obj).mutable_token_description;
+        let property = &mut authorized_borrow_mut(collection_owner, collection).mutable_token_description;
         set_property(property, mutable_token_description, string::utf8(b"mutable_token_description"));
     }
 
-    public fun set_mutable_token_name<T: key>(
+    public fun set_mutable_token_name(
         collection_owner: &signer,
-        obj: Object<T>,
+        collection: Object<Collection>,
         mutable_token_name: bool,
     ) acquires CollectionProperties {
-        let property = &mut authorized_borrow_mut(collection_owner, obj).mutable_token_name;
+        let property = &mut authorized_borrow_mut(collection_owner, collection).mutable_token_name;
         set_property(property, mutable_token_name, string::utf8(b"mutable_token_name"));
     }
 
-    public fun set_mutable_token_properties<T: key>(
+    public fun set_mutable_token_properties(
         collection_owner: &signer,
-        obj: Object<T>,
+        collection: Object<Collection>,
         mutable_token_properties: bool,
     ) acquires CollectionProperties {
-        let property = &mut authorized_borrow_mut(collection_owner, obj).mutable_token_properties;
+        let property = &mut authorized_borrow_mut(collection_owner, collection).mutable_token_properties;
         set_property(property, mutable_token_properties, string::utf8(b"mutable_token_properties"));
     }
 
-    public fun set_mutable_token_uri<T: key>(
+    public fun set_mutable_token_uri(
         collection_owner: &signer,
-        obj: Object<T>,
+        collection: Object<Collection>,
         mutable_token_uri: bool,
     ) acquires CollectionProperties {
-        let property = &mut authorized_borrow_mut(collection_owner, obj).mutable_token_uri;
+        let property = &mut authorized_borrow_mut(collection_owner, collection).mutable_token_uri;
         set_property(property, mutable_token_uri, string::utf8(b"mutable_uri"));
     }
 
-    public fun set_mutable_royalty<T: key>(
+    public fun set_mutable_royalty(
         collection_owner: &signer,
-        obj: Object<T>,
+        collection: Object<Collection>,
         mutable_royalty: bool,
     ) acquires CollectionProperties {
-        let property = &mut authorized_borrow_mut(collection_owner, obj).mutable_royalty;
+        let property = &mut authorized_borrow_mut(collection_owner, collection).mutable_royalty;
         set_property(property, mutable_royalty, string::utf8(b"mutable_royalty"));
     }
 
-    public fun set_tokens_burnable_by_collection_owner<T: key>(
+    public fun set_tokens_burnable_by_collection_owner(
         collection_owner: &signer,
-        obj: Object<T>,
+        collection: Object<Collection>,
         tokens_burnable_by_collection_owner: bool,
     ) acquires CollectionProperties {
-        let property = &mut authorized_borrow_mut(collection_owner, obj).tokens_burnable_by_collection_owner;
+        let property = &mut authorized_borrow_mut(collection_owner, collection).tokens_burnable_by_collection_owner;
         set_property(
             property,
             tokens_burnable_by_collection_owner,
@@ -203,12 +204,12 @@ module minter::collection_properties {
         );
     }
 
-    public fun set_tokens_transferable_by_collection_owner<T: key>(
+    public fun set_tokens_transferable_by_collection_owner(
         collection_owner: &signer,
-        obj: Object<T>,
+        collection: Object<Collection>,
         tokens_transferable_by_collection_owner: bool,
     ) acquires CollectionProperties {
-        let property = &mut authorized_borrow_mut(collection_owner, obj).tokens_transferable_by_collection_owner;
+        let property = &mut authorized_borrow_mut(collection_owner, collection).tokens_transferable_by_collection_owner;
         set_property(
             property,
             tokens_transferable_by_collection_owner,
@@ -225,24 +226,24 @@ module minter::collection_properties {
         event::emit(Mutation { mutated_field_name });
     }
 
-    inline fun borrow<T: key>(obj: Object<T>): &CollectionProperties acquires CollectionProperties {
-        assert!(collection_properties_exists(obj), error::not_found(ECOLLECTION_PROPERTIES_DOES_NOT_EXIST));
-        borrow_global<CollectionProperties>(object::object_address(&obj))
+    inline fun borrow(collection: Object<Collection>): &CollectionProperties acquires CollectionProperties {
+        assert!(collection_properties_exists(collection), error::not_found(ECOLLECTION_PROPERTIES_DOES_NOT_EXIST));
+        borrow_global<CollectionProperties>(object::object_address(&collection))
     }
 
-    inline fun authorized_borrow_mut<T: key>(
+    inline fun authorized_borrow_mut(
         collection_owner: &signer,
-        obj: Object<T>,
+        collection: Object<Collection>,
     ): &mut CollectionProperties acquires CollectionProperties {
-        assert_owner(signer::address_of(collection_owner), obj);
-        assert!(collection_properties_exists(obj), error::not_found(ECOLLECTION_PROPERTIES_DOES_NOT_EXIST));
+        assert_owner(signer::address_of(collection_owner), collection);
+        assert!(collection_properties_exists(collection), error::not_found(ECOLLECTION_PROPERTIES_DOES_NOT_EXIST));
 
-        borrow_global_mut<CollectionProperties>(object::object_address(&obj))
+        borrow_global_mut<CollectionProperties>(object::object_address(&collection))
     }
 
-    inline fun assert_owner<T: key>(collection_owner: address, obj: Object<T>) {
+    inline fun assert_owner(collection_owner: address, collection: Object<Collection>) {
         assert!(
-            object::owner(obj) == collection_owner,
+            object::owner(collection) == collection_owner,
             error::permission_denied(ENOT_OBJECT_OWNER),
         );
     }
@@ -288,58 +289,58 @@ module minter::collection_properties {
     }
 
     #[view]
-    public fun collection_properties_exists<T: key>(obj: Object<T>): bool {
-        exists<CollectionProperties>(object::object_address(&obj))
+    public fun collection_properties_exists(collection: Object<Collection>): bool {
+        exists<CollectionProperties>(object::object_address(&collection))
     }
 
     #[view]
-    public fun is_mutable_description<T: key>(obj: Object<T>): bool acquires CollectionProperties {
-        borrow(obj).mutable_description.value
+    public fun is_mutable_description(collection: Object<Collection>): bool acquires CollectionProperties {
+        borrow(collection).mutable_description.value
     }
 
     #[view]
-    public fun is_mutable_uri<T: key>(obj: Object<T>): bool acquires CollectionProperties {
-        borrow(obj).mutable_uri.value
+    public fun is_mutable_uri(collection: Object<Collection>): bool acquires CollectionProperties {
+        borrow(collection).mutable_uri.value
     }
 
     #[view]
-    public fun is_mutable_properties<T: key>(obj: Object<T>): bool acquires CollectionProperties {
-        borrow(obj).mutable_properties.value
+    public fun is_mutable_properties(collection: Object<Collection>): bool acquires CollectionProperties {
+        borrow(collection).mutable_properties.value
     }
 
     #[view]
-    public fun is_mutable_token_description<T: key>(obj: Object<T>): bool acquires CollectionProperties {
-        borrow(obj).mutable_token_description.value
+    public fun is_mutable_token_description(collection: Object<Collection>): bool acquires CollectionProperties {
+        borrow(collection).mutable_token_description.value
     }
 
     #[view]
-    public fun is_mutable_token_name<T: key>(properties: Object<T>): bool acquires CollectionProperties {
-        borrow(properties).mutable_token_name.value
+    public fun is_mutable_token_name(collection: Object<Collection>): bool acquires CollectionProperties {
+        borrow(collection).mutable_token_name.value
     }
 
     #[view]
-    public fun is_mutable_token_properties<T: key>(obj: Object<T>): bool acquires CollectionProperties {
-        borrow(obj).mutable_token_properties.value
+    public fun is_mutable_token_properties(collection: Object<Collection>): bool acquires CollectionProperties {
+        borrow(collection).mutable_token_properties.value
     }
 
     #[view]
-    public fun is_mutable_token_uri<T: key>(obj: Object<T>): bool acquires CollectionProperties {
-        borrow(obj).mutable_token_uri.value
+    public fun is_mutable_token_uri(collection: Object<Collection>): bool acquires CollectionProperties {
+        borrow(collection).mutable_token_uri.value
     }
 
     #[view]
-    public fun is_mutable_royalty<T: key>(obj: Object<T>): bool acquires CollectionProperties {
-        borrow(obj).mutable_royalty.value
+    public fun is_mutable_royalty(collection: Object<Collection>): bool acquires CollectionProperties {
+        borrow(collection).mutable_royalty.value
     }
 
     #[view]
-    public fun is_tokens_burnable_by_collection_owner<T: key>(obj: Object<T>): bool acquires CollectionProperties {
-        borrow(obj).tokens_burnable_by_collection_owner.value
+    public fun is_tokens_burnable_by_collection_owner(collection: Object<Collection>): bool acquires CollectionProperties {
+        borrow(collection).tokens_burnable_by_collection_owner.value
     }
 
     #[view]
-    public fun is_tokens_transferable_by_collection_owner<T: key>(obj: Object<T>): bool acquires CollectionProperties {
-        borrow(obj).tokens_transferable_by_collection_owner.value
+    public fun is_tokens_transferable_by_collection_owner(collection: Object<Collection>): bool acquires CollectionProperties {
+        borrow(collection).tokens_transferable_by_collection_owner.value
     }
 
     // ================================== MIGRATE OUT FUNCTIONS ================================== //
@@ -353,14 +354,14 @@ module minter::collection_properties {
     /// To migrate in to the new contract, the `ExtendRef` must be present as the `ExtendRef`
     /// is used to generate the collection object signer.
 
-    public fun migrate_out_collection_properties<T: key>(
+    public fun migrate_out_collection_properties(
         migration_signer: &signer,
         collection_owner: &signer,
-        obj: Object<T>,
+        collection: Object<Collection>,
     ): CollectionProperties acquires CollectionProperties {
         migration_helper::assert_migration_object_signer(migration_signer);
 
-        let properties = *authorized_borrow_mut(collection_owner, obj);
+        let properties = *authorized_borrow_mut(collection_owner, collection);
 
         let CollectionProperties {
             mutable_description: _,
@@ -373,7 +374,7 @@ module minter::collection_properties {
             mutable_royalty: _,
             tokens_burnable_by_collection_owner: _,
             tokens_transferable_by_collection_owner: _,
-        } = move_from<CollectionProperties>(object::object_address(&obj));
+        } = move_from<CollectionProperties>(object::object_address(&collection));
 
         properties
     }

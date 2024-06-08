@@ -140,24 +140,24 @@ module minter::signed_transaction {
         exists<ProofData>(addr)
     }
 
-    inline fun authorized_borrow_mut<T: key>(owner: &signer, obj: Object<T>): &mut ProofData {
-        assert_owner(owner, obj);
-        borrow_global_mut<ProofData>(proof_data_addr(obj))
+    inline fun authorized_borrow_mut(owner: &signer, proof_data: Object<ProofData>): &mut ProofData {
+        assert_owner(owner, proof_data);
+        borrow_global_mut<ProofData>(proof_data_addr(proof_data))
     }
 
-    inline fun borrow<T: key>(obj: Object<T>): &ProofData {
-        borrow_global<ProofData>(proof_data_addr(obj))
+    inline fun borrow(proof_data: Object<ProofData>): &ProofData {
+        borrow_global<ProofData>(proof_data_addr(proof_data))
     }
 
-    inline fun proof_data_addr<T: key>(obj: Object<T>): address {
-        let obj_addr = object::object_address(&obj);
-        assert!(proof_data_exists(obj_addr), EPROOF_DATA_DOES_NOT_EXIST);
-        obj_addr
+    inline fun proof_data_addr(proof_data: Object<ProofData>): address {
+        let proof_data_addr = object::object_address(&proof_data);
+        assert!(proof_data_exists(proof_data_addr), EPROOF_DATA_DOES_NOT_EXIST);
+        proof_data_addr
     }
 
-    inline fun assert_owner<T: key>(owner: &signer, obj: Object<T>) {
+    inline fun assert_owner(owner: &signer, proof_data: Object<ProofData>) {
         assert!(
-            object::owner(obj) == signer::address_of(owner),
+            object::owner(proof_data) == signer::address_of(owner),
             error::permission_denied(ENOT_OWNER),
         );
     }
