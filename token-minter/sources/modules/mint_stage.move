@@ -198,10 +198,11 @@ module minter::mint_stage {
         for (index in 0..vector::length(&stages)) {
             if (is_active(collection, index)) {
                 assert_active_and_execute(user, collection, index, amount);
+                remove_inactive_indexes(&mut borrow_mut(collection).mint_stages, &mut inactive_indexes);
                 return option::some(index)
             } else {
                 let (_, mint_stage_obj) = borrow_mut_mint_stage(collection, index);
-                if (timestamp::now_seconds() => mint_stage_end_time(mint_stage_obj)) {
+                if (timestamp::now_seconds() >= mint_stage_end_time(mint_stage_obj)) {
                     // Delete mint stage object if the mint stage has ended
                     destroy_mint_stage(mint_stage_obj);
                     vector::push_back(&mut inactive_indexes, index);
