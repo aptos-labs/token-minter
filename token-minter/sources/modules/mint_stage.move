@@ -359,7 +359,7 @@ module minter::mint_stage {
     // ====================================== View Functions ====================================== //
 
     #[view]
-    public fun current_active(collection: Object<Collection>): Option<u64> acquires MintStageData, MintStage {
+    public fun ccurent_active_stage(collection: Object<Collection>): Option<u64> acquires MintStageData, MintStage {
         let stages = stages(collection);
         for (index in 0..vector::length(&stages)) {
             if (is_active(collection, index)) {
