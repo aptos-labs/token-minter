@@ -359,6 +359,17 @@ module minter::mint_stage {
     // ====================================== View Functions ====================================== //
 
     #[view]
+    public fun ccurent_active_stage(collection: Object<Collection>): Option<u64> acquires MintStageData, MintStage {
+        let stages = stages(collection);
+        for (index in 0..vector::length(&stages)) {
+            if (is_active(collection, index)) {
+                return option::some(index)
+            }
+        };
+        option::none()
+    }
+
+    #[view]
     public fun is_active(collection: Object<Collection>, index: u64): bool acquires MintStageData, MintStage {
         let (_, mint_stage_obj) = borrow_mint_stage(collection, index);
         let current_time = timestamp::now_seconds();
