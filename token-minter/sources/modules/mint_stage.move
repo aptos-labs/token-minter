@@ -42,6 +42,8 @@ module minter::mint_stage {
     const EPUBLIC_STAGE_WITH_LIMIT_DOES_NOT_EXIST: u64 = 13;
     /// The mint stage does not exist on the collection
     const EMINT_STAGE_DOES_NOT_EXIST: u64 = 14;
+    /// A mint stage cannot have multiple stages
+    const ESTAGE_CANNOT_HAVE_MULTIPLE_STAGES: u64 = 15;
 
     #[resource_group_member(group = aptos_framework::object::ObjectGroup)]
     struct MintStageData has key {
@@ -138,33 +140,20 @@ module minter::mint_stage {
         mint_stage_data
     }
 
-    public fun remove_stage(
+    public fun remove(
         owner: &signer,
         collection: Object<Collection>,
         index: u64,
     ) acquires MintStageData, MintStage, Allowlist, PublicMintStageWithLimit {
         let mint_stages = &mut authorized_borrow_mut(owner, collection).mint_stages;
         let mint_stage_obj = vector::remove(mint_stages, index);
-        let MintStage { name, start_time: _, end_time: _, extend_ref: _, delete_ref } = move_from<MintStage>(
-            object::object_address(&mint_stage_obj)
-        );
-
-        if (allowlist_exists(mint_stage_obj)) {
-            let Allowlist { mint_allowances } = move_from<Allowlist>(object::object_address(&mint_stage_obj));
-            smart_table::destroy(mint_allowances);
-        } else if (public_stage_with_limit_exists(mint_stage_obj)) {
-            let PublicMintStageWithLimit { max_per_user: _, user_balances } = move_from<PublicMintStageWithLimit>(
-                object::object_address(&mint_stage_obj)
-            );
-            smart_table::destroy(user_balances);
-        };
-
-        object::delete(delete_ref);
+        let name = mint_stage_name(mint_stage_obj);
+        destroy_mint_stage(mint_stage_obj);
 
         event::emit(RemoveMintStage { mint_stage_data: object::convert(collection), mint_stage: mint_stage_obj, name });
     }
 
-    public fun update_mint_stage(
+    public fun update(
         owner: &signer,
         collection: Object<Collection>,
         index: u64,
@@ -205,16 +194,22 @@ module minter::mint_stage {
         amount: u64,
     ): Option<u64> acquires MintStageData, MintStage, Allowlist, PublicMintStageWithLimit {
         let stages = stages(collection);
+        let inactive_indexes = vector[];
         for (index in 0..vector::length(&stages)) {
             if (is_active(collection, index)) {
                 assert_active_and_execute(user, collection, index, amount);
+                remove_inactive_indexes(&mut borrow_mut(collection).mint_stages, &mut inactive_indexes);
                 return option::some(index)
             } else {
-                // Delete mint stage object if not active
                 let (_, mint_stage_obj) = borrow_mut_mint_stage(collection, index);
-                destroy_mint_stage(mint_stage_obj);
+                if (timestamp::now_seconds() >= mint_stage_end_time(mint_stage_obj)) {
+                    // Delete mint stage object if the mint stage has ended
+                    destroy_mint_stage(mint_stage_obj);
+                    vector::push_back(&mut inactive_indexes, index);
+                }
             }
         };
+        remove_inactive_indexes(&mut borrow_mut(collection).mint_stages, &mut inactive_indexes);
         option::none()
     }
 
@@ -257,21 +252,7 @@ module minter::mint_stage {
         };
     }
 
-    public fun set_start_and_end_time(
-        owner: &signer,
-        collection: Object<Collection>,
-        index: u64,
-        start_time: u64,
-        end_time: u64,
-    ) acquires MintStageData, MintStage {
-        valid_start_and_end_time(start_time, end_time);
-
-        let (mint_stage, _) = authorized_borrow_mut_mint_stage(owner, collection, index);
-        mint_stage.start_time = start_time;
-        mint_stage.end_time = end_time;
-    }
-
-    public fun add_to_allowlist(
+    public fun upsert_allowlist(
         owner: &signer,
         collection: Object<Collection>,
         index: u64,
@@ -279,6 +260,8 @@ module minter::mint_stage {
         amount: u64
     ) acquires MintStageData, MintStage, Allowlist {
         let (_, mint_stage_obj) = authorized_borrow_mut_mint_stage(owner, collection, index);
+        assert!(!public_stage_with_limit_exists(mint_stage_obj), ESTAGE_CANNOT_HAVE_MULTIPLE_STAGES);
+
         if (!allowlist_exists(mint_stage_obj)) {
             move_to(&mint_stage_signer(mint_stage_obj), Allowlist {
                 mint_allowances: smart_table::new(),
@@ -306,13 +289,15 @@ module minter::mint_stage {
         smart_table::clear(&mut borrow_mut_allowlist(mint_stage_obj).mint_allowances);
     }
 
-    public fun set_public_stage_max_per_user(
+    public fun upsert_public_stage_max_per_user(
         owner: &signer,
         collection: Object<Collection>,
         index: u64,
         max_per_user: u64,
     ) acquires MintStageData, MintStage, PublicMintStageWithLimit {
         let (_, mint_stage_obj) = authorized_borrow_mut_mint_stage(owner, collection, index);
+        assert!(!allowlist_exists(mint_stage_obj), ESTAGE_CANNOT_HAVE_MULTIPLE_STAGES);
+
         if (!public_stage_with_limit_exists(mint_stage_obj)) {
             move_to(&mint_stage_signer(mint_stage_obj), PublicMintStageWithLimit {
                 max_per_user,
@@ -344,16 +329,42 @@ module minter::mint_stage {
             mint_stage_addr
         );
         if (allowlist_exists(mint_stage)) {
-            let Allowlist { mint_allowances } = move_from<Allowlist>(mint_stage_addr);
-            smart_table::destroy(mint_allowances);
+            remove_allowlist_internal(mint_stage);
         };
         if (public_stage_with_limit_exists(mint_stage)) {
-            let PublicMintStageWithLimit { max_per_user: _, user_balances } = move_from<PublicMintStageWithLimit>(
-                mint_stage_addr,
-            );
-            smart_table::destroy(user_balances);
+            remove_public_stage_with_limit_internal(mint_stage);
         };
         object::delete(delete_ref);
+    }
+
+    public fun remove_allowlist_stage(
+        owner: &signer,
+        collection: Object<Collection>,
+        index: u64,
+    ) acquires MintStageData, Allowlist, MintStage {
+        let (_, mint_stage_obj) = authorized_borrow_mut_mint_stage(owner, collection, index);
+        remove_allowlist_internal(mint_stage_obj);
+    }
+
+    fun remove_allowlist_internal(mint_stage: Object<MintStage>) acquires Allowlist {
+        let Allowlist { mint_allowances } = move_from<Allowlist>(object::object_address(&mint_stage));
+        smart_table::destroy(mint_allowances);
+    }
+
+    public fun remove_public_stage_with_limit(
+        owner: &signer,
+        collection: Object<Collection>,
+        index: u64,
+    ) acquires MintStageData, PublicMintStageWithLimit, MintStage {
+        let (_, mint_stage_obj) = authorized_borrow_mut_mint_stage(owner, collection, index);
+        remove_public_stage_with_limit_internal(mint_stage_obj);
+    }
+
+    fun remove_public_stage_with_limit_internal(mint_stage: Object<MintStage>) acquires PublicMintStageWithLimit {
+        let PublicMintStageWithLimit { max_per_user: _, user_balances } = move_from<PublicMintStageWithLimit>(
+            object::object_address(&mint_stage),
+        );
+        smart_table::destroy(user_balances);
     }
 
     // ====================================== View Functions ====================================== //
@@ -517,7 +528,7 @@ module minter::mint_stage {
             let mint_stage = borrow_mint_stage_from_object(*mint_stage);
             mint_stage.name == name
         });
-        assert!(is_found, error::not_found(ESTAGE_DOES_NOT_EXIST));
+        assert!(is_found, ESTAGE_DOES_NOT_EXIST);
         index
     }
 
@@ -527,6 +538,13 @@ module minter::mint_stage {
         index: u64,
     ): Object<MintStage> acquires MintStageData {
         *vector::borrow(&borrow(collection).mint_stages, index)
+    }
+
+    inline fun remove_inactive_indexes(stages: &mut vector<Object<MintStage>>, inactive_indexes: &mut vector<u64>) {
+        vector::reverse(inactive_indexes);
+        for (i in 0..vector::length(inactive_indexes)) {
+            vector::remove(stages, *vector::borrow(inactive_indexes, i));
+        }
     }
 
     inline fun get_mint_stage(

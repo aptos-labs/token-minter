@@ -215,7 +215,7 @@ module ez_launch::ez_launch_with_stages {
         for (i in 0..addrs_length) {
             let addr = *vector::borrow(&addrs, i);
             let amount = *vector::borrow(&amounts, i);
-            mint_stage::add_to_allowlist(ez_launch_signer, borrow(config).collection, stage_index, addr, amount);
+            mint_stage::upsert_allowlist(ez_launch_signer, borrow(config).collection, stage_index, addr, amount);
         };
     }
 
@@ -248,7 +248,7 @@ module ez_launch::ez_launch_with_stages {
         for (i in 0..addrs_length) {
             let addr = *vector::borrow(&addrs, i);
             let amount = *vector::borrow(&amounts, i);
-            mint_stage::add_to_allowlist(ez_launch_signer, borrow(config).collection, stage_index, addr, amount);
+            mint_stage::upsert_allowlist(ez_launch_signer, borrow(config).collection, stage_index, addr, amount);
         };
     }
 
@@ -259,7 +259,7 @@ module ez_launch::ez_launch_with_stages {
         max_per_user: u64,
     ) acquires EZLaunchConfig {
         let ez_launch_signer = &authorized_config_signer(owner, config);
-        mint_stage::set_public_stage_max_per_user(ez_launch_signer, borrow(config).collection, stage_index, max_per_user);
+        mint_stage::upsert_public_stage_max_per_user(ez_launch_signer, borrow(config).collection, stage_index, max_per_user);
     }
 
     public fun pre_mint_tokens_impl(
