@@ -1,5 +1,6 @@
 #[test_only]
 module minter::mint_stage_tests {
+    use std::option;
     use std::signer;
     use std::string::{String, utf8};
     use std::vector;
@@ -87,7 +88,7 @@ module minter::mint_stage_tests {
 
         let user_addr = signer::address_of(user);
         let amount = 1;
-        mint_stage::add_to_allowlist(creator, collection, index, user_addr, amount);
+        mint_stage::upsert_allowlist(creator, collection, index, user_addr, amount);
         assert!(mint_stage::is_allowlisted(collection, index, user_addr) == true, 0);
         // Assert stage has allowlist configured
         assert!(mint_stage::is_stage_allowlisted(collection, index), 0);
@@ -113,7 +114,7 @@ module minter::mint_stage_tests {
             0,
         );
         let presale_index = mint_stage::find_mint_stage_index_by_name(collection, presale);
-        mint_stage::remove_stage(creator, collection, presale_index);
+        mint_stage::remove(creator, collection, presale_index);
 
         assert!(vector::is_empty(&mint_stage::stages(collection)), 0);
     }
@@ -157,7 +158,7 @@ module minter::mint_stage_tests {
         let index = mint_stage::find_mint_stage_index_by_name(collection, category);
 
         // Need to set allowlist before executing, empty allowlist means anyone can mint.
-        mint_stage::add_to_allowlist(creator, collection, index, signer::address_of(creator), 1);
+        mint_stage::upsert_allowlist(creator, collection, index, signer::address_of(creator), 1);
 
         mint_stage::assert_active_and_execute(user, collection, index, 1);
     }
@@ -180,7 +181,7 @@ module minter::mint_stage_tests {
         );
         let index = mint_stage::find_mint_stage_index_by_name(collection, category);
         // User tries calling instead of creator, this should fail.
-        mint_stage::add_to_allowlist(user, collection, index, signer::address_of(creator), 1);
+        mint_stage::upsert_allowlist(user, collection, index, signer::address_of(creator), 1);
     }
 
     #[test(creator = @0x123, user = @0x456, aptos_framework = @0x1)]
@@ -202,7 +203,7 @@ module minter::mint_stage_tests {
 
         let user_addr = signer::address_of(user);
         let amount = 1;
-        mint_stage::add_to_allowlist(creator, collection, index, user_addr, amount);
+        mint_stage::upsert_allowlist(creator, collection, index, user_addr, amount);
         mint_stage::remove_from_allowlist(creator, collection, index, user_addr);
 
         assert!(mint_stage::is_allowlisted(collection, index, user_addr) == false, 0);
@@ -228,8 +229,8 @@ module minter::mint_stage_tests {
         let user_addr = signer::address_of(user);
         let creator_addr = signer::address_of(creator);
         let amount = 1;
-        mint_stage::add_to_allowlist(creator, collection, index, user_addr, amount);
-        mint_stage::add_to_allowlist(creator, collection, index, creator_addr, amount);
+        mint_stage::upsert_allowlist(creator, collection, index, user_addr, amount);
+        mint_stage::upsert_allowlist(creator, collection, index, creator_addr, amount);
         mint_stage::clear_allowlist(creator, collection, index);
 
         // Assert no one is allowlisted
@@ -257,7 +258,7 @@ module minter::mint_stage_tests {
 
         let new_start_time = now - 7200; // 2 hours prior to now
         let new_end_time = now + 3600; // 1 hour post now
-        mint_stage::set_start_and_end_time(creator, collection, index, new_start_time, new_end_time);
+        mint_stage::update(creator, collection, index, category, new_start_time, new_end_time);
 
         assert!(mint_stage::start_time(collection, index) == new_start_time, 0);
         assert!(mint_stage::end_time(collection, index) == new_end_time, 0);
@@ -283,11 +284,11 @@ module minter::mint_stage_tests {
 
         let new_start_time = now - 3600; // Change start time to 1 hour prior to now
         let new_end_time = now + 3600; // Change end time to 1 hour post now
-        mint_stage::set_start_and_end_time(creator, collection, index, new_start_time, new_end_time);
+        mint_stage::update(creator, collection, index, category, new_start_time, new_end_time);
         assert!(mint_stage::is_active(collection, index) == true, 0);
 
         let new_end_time = timestamp::now_seconds() + 3600; // Change end time to 1 hour post now
-        mint_stage::set_start_and_end_time(creator, collection, index, new_start_time, new_end_time);
+        mint_stage::update(creator, collection, index, category, new_start_time, new_end_time);
         assert!(mint_stage::is_active(collection, index) == true, 0);
     }
 
@@ -483,7 +484,7 @@ module minter::mint_stage_tests {
         mint_stage::assert_active_and_execute(user, collection, index, 1);
 
         let new_max_per_user = 1; // Update to 1
-        mint_stage::set_public_stage_max_per_user(
+        mint_stage::upsert_public_stage_max_per_user(
             creator,
             collection,
             index,
@@ -511,9 +512,127 @@ module minter::mint_stage_tests {
         let collection = object::convert(mint_stage_data);
         let index = mint_stage::find_mint_stage_index_by_name(collection, category);
         if (public_stage_max_per_user > 0) {
-            mint_stage::set_public_stage_max_per_user(creator, collection, index, public_stage_max_per_user);
+            mint_stage::upsert_public_stage_max_per_user(creator, collection, index, public_stage_max_per_user);
         };
         (object::generate_signer(&constructor_ref), collection)
+    }
+
+    #[test(creator = @0x123, aptos_framework = @0x1)]
+    #[expected_failure(abort_code = 15, location = minter::mint_stage)]
+    fun exception_adding_stage_when_public_stage_already_exists(creator: &signer, aptos_framework: &signer) {
+        let now = 100000;
+        init_timestamp(aptos_framework, now);
+
+        let start_time = now - 3600; // 1 hour prior to now
+        let end_time = start_time + 7200; // 2 hours post now
+        let category = utf8(b"Public sale");
+        let (_, collection) = create_mint_stage_data_object(creator, start_time, end_time, category, 0);
+        let index = mint_stage::find_mint_stage_index_by_name(collection, category);
+
+        // Initially set max per user
+        mint_stage::upsert_public_stage_max_per_user(creator, collection, index, 5);
+        assert!(mint_stage::public_stage_max_per_user(collection, index) == 5, 0);
+
+        // Try to set the allowlist and expect an error
+        mint_stage::upsert_allowlist(creator, collection, index, signer::address_of(creator), 1);
+    }
+
+    #[test(creator = @0x123, aptos_framework = @0x1)]
+    #[expected_failure(abort_code = 15, location = minter::mint_stage)]
+    fun exception_adding_stage_when_allowlist_stage_already_exists(creator: &signer, aptos_framework: &signer) {
+        let now = 100000;
+        init_timestamp(aptos_framework, now);
+
+        let start_time = now - 3600; // 1 hour prior to now
+        let end_time = start_time + 7200; // 2 hours post now
+        let category = utf8(b"Public sale");
+        let (_, collection) = create_mint_stage_data_object(creator, start_time, end_time, category, 0);
+        let index = mint_stage::find_mint_stage_index_by_name(collection, category);
+
+        // Initially set allowlist
+        mint_stage::upsert_allowlist(creator, collection, index, signer::address_of(creator), 1);
+        assert!(mint_stage::is_allowlisted(collection, index, signer::address_of(creator)), 0);
+
+        // Try to set the public stage with limit and expect an error
+        mint_stage::upsert_public_stage_max_per_user(creator, collection, index, 5);
+    }
+
+    #[test(creator = @0x123, user = @0x456, aptos_framework = @0x1)]
+    #[expected_failure(abort_code = 8, location = minter::mint_stage)]
+    fun test_execute_earliest_stage_deletes_ended_stage(creator: &signer, user: &signer, aptos_framework: &signer) {
+        let now = 100000;
+        init_timestamp(aptos_framework, now);
+
+        // Create two stages, one that has ended and one that is still active
+        let delta = 1000;
+        let start_time1 = now - 7200; // 2 hours prior to now
+        let end_time1 = now + delta;
+        let category1 = utf8(b"Stage 1");
+
+        let start_time2 = now - 3600; // 1 hour prior to now
+        let end_time2 = now + 3600; // 1 hour post now, still active
+        let category2 = utf8(b"Stage 2");
+
+        let (object_signer, collection) = create_mint_stage_data_object(creator, start_time1, end_time1, category1, 0);
+        mint_stage::create(&object_signer, category2, start_time2, end_time2);
+        let index1 = mint_stage::find_mint_stage_index_by_name(collection, category1);
+        let index2 = mint_stage::find_mint_stage_index_by_name(collection, category2);
+
+        // Move time to after the first stage has ended
+        init_timestamp(aptos_framework, now + delta + 1);
+
+        // Ensure the first stage is inactive (ended) and the second is active
+        assert!(!mint_stage::is_active(collection, index1), 0);
+        assert!(mint_stage::is_active(collection, index2), 0);
+
+        // Execute the earliest stage for the user, should remove the first stage and execute the second
+        let result = mint_stage::execute_earliest_stage(user, collection, 1);
+        assert!(result == option::some(index2), 0);
+
+        // This should throw as the mint stage is removed from the stages.
+        mint_stage::find_mint_stage_index_by_name(collection, category1);
+    }
+
+    #[test(creator = @0x123, aptos_framework = @0x1)]
+    fun test_remove_allowlist_stage(creator: &signer, aptos_framework: &signer) {
+        let now = 100000;
+        init_timestamp(aptos_framework, now);
+        let presale = utf8(b"Presale");
+        let presale_start_time = now + 3600; // Starts 2 hours from now
+        let presale_end_time = presale_start_time + 3600; // Ends 3 hours from now
+        let (_, collection) = create_mint_stage_data_object(
+            creator,
+            presale_start_time,
+            presale_end_time,
+            presale,
+            0,
+        );
+        let presale_index = mint_stage::find_mint_stage_index_by_name(collection, presale);
+        mint_stage::upsert_allowlist(creator, collection, presale_index, signer::address_of(creator), 1);
+        mint_stage::remove_allowlist_stage(creator, collection, presale_index);
+
+        assert!(!mint_stage::allowlist_exists_with_index(collection, presale_index), 0);
+    }
+
+    #[test(creator = @0x123, aptos_framework = @0x1)]
+    fun test_remove_public_stage_with_limit(creator: &signer, aptos_framework: &signer) {
+        let now = 100000;
+        init_timestamp(aptos_framework, now);
+        let public_sale = utf8(b"Public Sale");
+        let public_sale_start_time = now + 3600; // Starts 1 hour from now
+        let public_sale_end_time = public_sale_start_time + 3600; // Ends 2 hours from now
+        let (_, collection) = create_mint_stage_data_object(
+            creator,
+            public_sale_start_time,
+            public_sale_end_time,
+            public_sale,
+            1,
+        );
+        let public_sale_index = mint_stage::find_mint_stage_index_by_name(collection, public_sale);
+        mint_stage::upsert_public_stage_max_per_user(creator, collection, public_sale_index, 1);
+        mint_stage::remove_public_stage_with_limit(creator, collection, public_sale_index);
+
+        assert!(!mint_stage::public_stage_with_limit_exists_with_index(collection, public_sale_index), 0);
     }
 
     fun create_object(creator: &signer): ConstructorRef {
