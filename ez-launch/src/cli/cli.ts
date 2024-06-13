@@ -211,7 +211,7 @@ async function validateProjectConfig(projectPath: string) {
     errors.push("Collection name cannot be empty.");
   }
 
-  if (!config.collection.uri) {
+  if (!config.collection.image) {
     errors.push("Collection URI cannot be empty.");
   }
 
@@ -352,7 +352,7 @@ async function createCollection(
     collection: {
       name: collectionMetadata.name,
       description: collectionMetadata.description,
-      uri: collectionMetadata.uri,
+      uri: collectionMetadata.image,
       mutableCollectionMetadata: responses.mutableCollectionMetadata,
       mutableTokenMetadata: responses.mutableTokenMetadata,
       randomMint: responses.randomMint,
@@ -382,9 +382,9 @@ async function createCollection(
     const tokenMetadata = JSON.parse(fs.readFileSync(filePath, "utf8"));
 
     // Ensure that `uri` exists in tokenMetadata and use it directly
-    if (!tokenMetadata.uri) {
+    if (!tokenMetadata.image) {
       console.warn(
-        `URI missing in token metadata for ${path.basename(filePath)}. Skipping.`,
+        `Image missing in token metadata for ${path.basename(filePath)}. Skipping.`,
       );
       return;
     }
@@ -392,7 +392,7 @@ async function createCollection(
     const token: TokenMetadata = {
       name: tokenMetadata.name,
       description: tokenMetadata.description,
-      uri: tokenMetadata.uri,
+      uri: tokenMetadata.image,
     };
 
     outJson.tokens.push(token);
@@ -406,7 +406,7 @@ async function createCollection(
       creator: account,
       description: collectionMetadata.description,
       name: collectionMetadata.name,
-      uri: collectionMetadata.uri,
+      uri: collectionMetadata.image,
       mutableCollectionMetadata: responses.mutableCollectionMetadata,
       mutableTokenMetadata: responses.mutableTokenMetadata,
       randomMint: responses.randomMint,

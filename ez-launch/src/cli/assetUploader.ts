@@ -189,7 +189,7 @@ const updateImageField = (jsonFilePath: string, mediaUrl: string): void => {
       );
     }
 
-    metadataJson.uri = mediaUrl;
+    metadataJson.image = mediaUrl;
     fs.writeFileSync(jsonFilePath, JSON.stringify(metadataJson, null, 4));
   } catch (error) {
     throw new Error(
