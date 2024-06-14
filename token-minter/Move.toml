@@ -5,7 +5,7 @@ authors = []
 
 [addresses]
 minter = "_"
-migration = "0x111" # Will replace when we have an address responsible for migrations.
+migration = "0x362f6f24a743e16dbbc8ea1f24347445cb83b78769ea387b29c23eb1a27369fc"
 # Mock addresses for testing.
 minter_v2 = "0x999"
 
