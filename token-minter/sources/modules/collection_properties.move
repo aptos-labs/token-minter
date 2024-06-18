@@ -43,6 +43,10 @@ module minter::collection_properties {
         tokens_burnable_by_collection_owner: CollectionProperty,
         /// Determines if the collection owner can transfer tokens
         tokens_transferable_by_collection_owner: CollectionProperty,
+        /// Determines if the collection owner can mutate the collection_properties's name
+        mutable_name: CollectionProperty,
+        /// Determines if the collection owner can mutate the collection_properties's max_supply
+        mutable_max_supply: CollectionProperty,
     }
 
     #[event]
@@ -58,6 +62,8 @@ module minter::collection_properties {
         mutable_royalty: CollectionProperty,
         tokens_burnable_by_collection_owner: CollectionProperty,
         tokens_transferable_by_collection_owner: CollectionProperty,
+        mutable_name: CollectionProperty,
+        mutable_max_supply: CollectionProperty,
     }
 
     #[event]
@@ -80,6 +86,8 @@ module minter::collection_properties {
         mutable_royalty: bool,
         tokens_burnable_by_collection_owner: bool,
         tokens_transferable_by_collection_owner: bool,
+        mutable_name: bool,
+        mutable_max_supply: bool,
     ): CollectionProperties {
         CollectionProperties {
             mutable_description: create_property(mutable_description, false),
@@ -92,6 +100,8 @@ module minter::collection_properties {
             mutable_royalty: create_property(mutable_royalty, false),
             tokens_burnable_by_collection_owner: create_property(tokens_burnable_by_collection_owner, false),
             tokens_transferable_by_collection_owner: create_property(tokens_transferable_by_collection_owner, false),
+            mutable_name: create_property(mutable_name, false),
+            mutable_max_supply: create_property(mutable_max_supply, false),
         }
     }
 
@@ -114,6 +124,8 @@ module minter::collection_properties {
             mutable_royalty: properties.mutable_royalty,
             tokens_burnable_by_collection_owner: properties.tokens_burnable_by_collection_owner,
             tokens_transferable_by_collection_owner: properties.tokens_transferable_by_collection_owner,
+            mutable_name: properties.mutable_name,
+            mutable_max_supply: properties.mutable_max_supply,
         });
 
         object::object_from_constructor_ref(constructor_ref)
@@ -217,6 +229,24 @@ module minter::collection_properties {
         );
     }
 
+    public fun set_mutable_name(
+        collection_owner: &signer,
+        collection: Object<Collection>,
+        mutable_name: bool,
+    ) acquires CollectionProperties {
+        let property = &mut authorized_borrow_mut(collection_owner, collection).mutable_name;
+        set_property(property, mutable_name, string::utf8(b"mutable_name"));
+    }
+
+    public fun set_mutable_max_supply(
+        collection_owner: &signer,
+        collection: Object<Collection>,
+        mutable_max_supply: bool,
+    ) acquires CollectionProperties {
+        let property = &mut authorized_borrow_mut(collection_owner, collection).mutable_max_supply;
+        set_property(property, mutable_max_supply, string::utf8(b"mutable_max_supply"));
+    }
+
     fun set_property(property: &mut CollectionProperty, value: bool, mutated_field_name: String) {
         assert!(!property.initialized, error::invalid_state(ECOLLECTION_PROPERTY_ALREADY_INITIALIZED));
 
@@ -288,6 +318,14 @@ module minter::collection_properties {
         (properties.tokens_transferable_by_collection_owner.value, properties.tokens_transferable_by_collection_owner.initialized)
     }
 
+    public fun mutable_name(properties: &CollectionProperties): (bool, bool) {
+        (properties.mutable_name.value, properties.mutable_name.initialized)
+    }
+
+    public fun mutable_max_supply(properties: &CollectionProperties): (bool, bool) {
+        (properties.mutable_max_supply.value, properties.mutable_max_supply.initialized)
+    }
+
     #[view]
     public fun collection_properties_exists(collection: Object<Collection>): bool {
         exists<CollectionProperties>(object::object_address(&collection))
@@ -343,6 +381,16 @@ module minter::collection_properties {
         borrow(collection).tokens_transferable_by_collection_owner.value
     }
 
+    #[view]
+    public fun is_mutable_name(collection: Object<Collection>): bool acquires CollectionProperties {
+        borrow(collection).mutable_name.value
+    }
+
+    #[view]
+    public fun is_mutable_max_supply(collection: Object<Collection>): bool acquires CollectionProperties {
+        borrow(collection).mutable_max_supply.value
+    }
+
     // ================================== MIGRATE OUT FUNCTIONS ================================== //
     /// Migration function used for migrating the refs from one object to another.
     /// This is called when the contract has been upgraded to a new address and version.
@@ -374,6 +422,8 @@ module minter::collection_properties {
             mutable_royalty: _,
             tokens_burnable_by_collection_owner: _,
             tokens_transferable_by_collection_owner: _,
+            mutable_name: _,
+            mutable_max_supply: _,
         } = move_from<CollectionProperties>(object::object_address(&collection));
 
         properties
