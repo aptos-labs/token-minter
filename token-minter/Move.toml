@@ -2,6 +2,7 @@
 name = "TokenMinter"
 version = "1.0.0"
 authors = []
+upgrade_policy = "immutable"
 
 [addresses]
 minter = "_"

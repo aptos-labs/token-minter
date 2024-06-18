@@ -45,6 +45,10 @@ module minter_v2::collection_properties_v2 {
         tokens_burnable_by_collection_owner: CollectionProperty,
         /// Determines if the collection owner can transfer tokens
         tokens_transferable_by_collection_owner: CollectionProperty,
+        /// Determines if the collection owner can mutate the collection_properties's name
+        mutable_name: CollectionProperty,
+        /// Determines if the collection owner can mutate the collection_properties's max_supply
+        mutable_max_supply: CollectionProperty,
     }
 
     #[event]
@@ -80,6 +84,8 @@ module minter_v2::collection_properties_v2 {
         mutable_royalty: bool,
         tokens_burnable_by_collection_owner: bool,
         tokens_transferable_by_collection_owner: bool,
+        mutable_name: bool,
+        mutable_max_supply: bool,
     ): CollectionProperties {
         CollectionProperties {
             mutable_description: create_property(mutable_description, false),
@@ -91,6 +97,8 @@ module minter_v2::collection_properties_v2 {
             mutable_royalty: create_property(mutable_royalty, false),
             tokens_burnable_by_collection_owner: create_property(tokens_burnable_by_collection_owner, false),
             tokens_transferable_by_collection_owner: create_property(tokens_transferable_by_collection_owner, false),
+            mutable_name: create_property(mutable_name, false),
+            mutable_max_supply: create_property(mutable_max_supply, false),
         }
     }
 
@@ -348,6 +356,8 @@ module minter_v2::collection_properties_v2 {
         mutable_royalty: CollectionProperty,
         tokens_burnable_by_collection_owner: CollectionProperty,
         tokens_transferable_by_collection_owner: CollectionProperty,
+        mutable_name: CollectionProperty,
+        mutable_max_supply: CollectionProperty,
     ) {
         migration_helper::assert_migration_object_signer(migration_signer);
 
@@ -367,6 +377,8 @@ module minter_v2::collection_properties_v2 {
             mutable_royalty,
             tokens_burnable_by_collection_owner,
             tokens_transferable_by_collection_owner,
+            mutable_name,
+            mutable_max_supply,
         });
     }
 
@@ -391,6 +403,8 @@ module minter_v2::collection_properties_v2 {
             mutable_royalty: _,
             tokens_burnable_by_collection_owner: _,
             tokens_transferable_by_collection_owner: _,
+            mutable_name: _,
+            mutable_max_supply: _,
         } = move_from<CollectionProperties>(object::object_address(&obj));
 
         properties

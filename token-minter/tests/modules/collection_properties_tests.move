@@ -165,6 +165,6 @@ module minter::collection_properties_tests {
     }
 
     fun default_properties(value: bool): CollectionProperties {
-        collection_properties::create_uninitialized_properties(value, value, value, value, value, value, value, value, value, value)
+        collection_properties::create_uninitialized_properties(value, value, value, value, value, value, value, value, value, value, value, value)
     }
 }

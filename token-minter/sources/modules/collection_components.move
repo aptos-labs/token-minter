@@ -11,10 +11,10 @@ module minter::collection_components {
     use aptos_token_objects::collection::Collection;
     use aptos_token_objects::property_map;
     use aptos_token_objects::royalty;
-    use minter::migration_helper;
 
     use minter::collection_properties;
     use minter::collection_properties::CollectionProperties;
+    use minter::migration_helper;
 
     /// Collection refs does not exist on this object.
     const ECOLLECTION_REFS_DOES_NOT_EXIST: u64 = 1;
@@ -69,8 +69,20 @@ module minter::collection_components {
         object::object_from_constructor_ref(constructor_ref)
     }
 
-    fun create_default_properties(value: bool): CollectionProperties {
-        collection_properties::create_uninitialized_properties(value, value, value, value, value, value, value, value, value, value)
+    inline fun create_default_properties(value: bool): CollectionProperties {
+        collection_properties::create_uninitialized_properties(value, value, value, value, value, value, value, value, value, value, value, value)
+    }
+
+    public fun set_collection_name(
+        collection_owner: &signer,
+        collection: Object<Collection>,
+        name: String,
+    ) acquires CollectionRefs {
+        assert!(is_mutable_name(collection), error::permission_denied(EFIELD_NOT_MUTABLE));
+        let mutator_ref = &authorized_borrow_refs_mut(collection, collection_owner).mutator_ref;
+        assert!(option::is_some(mutator_ref), error::not_found(EFIELD_NOT_MUTABLE));
+
+        collection::set_name(option::borrow(mutator_ref), name);
     }
 
     public fun set_collection_description(
@@ -95,6 +107,18 @@ module minter::collection_components {
         assert!(option::is_some(mutator_ref), error::not_found(EFIELD_NOT_MUTABLE));
 
         collection::set_uri(option::borrow(mutator_ref), uri);
+    }
+
+    public fun set_collection_max_supply(
+        collection_owner: &signer,
+        collection: Object<Collection>,
+        max_supply: u64,
+    ) acquires CollectionRefs {
+        assert!(is_mutable_max_supply(collection), error::permission_denied(EFIELD_NOT_MUTABLE));
+        let mutator_ref = &authorized_borrow_refs_mut(collection, collection_owner).mutator_ref;
+        assert!(option::is_some(mutator_ref), error::not_found(EFIELD_NOT_MUTABLE));
+
+        collection::set_max_supply(option::borrow(mutator_ref), max_supply);
     }
 
     public fun set_collection_royalties(
@@ -238,23 +262,33 @@ module minter::collection_components {
     }
 
     #[view]
-    public fun is_mutable_description(obj: Object<Collection>): bool {
-        collection_properties::is_mutable_description(obj)
+    public fun is_mutable_name(collection: Object<Collection>): bool {
+        collection_properties::is_mutable_name(collection)
     }
 
     #[view]
-    public fun is_mutable_uri(obj: Object<Collection>): bool {
-        collection_properties::is_mutable_uri(obj)
+    public fun is_mutable_description(collection: Object<Collection>): bool {
+        collection_properties::is_mutable_description(collection)
     }
 
     #[view]
-    public fun is_mutable_properties(obj: Object<Collection>): bool {
-        collection_properties::is_mutable_properties(obj)
+    public fun is_mutable_uri(collection: Object<Collection>): bool {
+        collection_properties::is_mutable_uri(collection)
     }
 
     #[view]
-    public fun is_mutable_royalty(obj: Object<Collection>): bool {
-        collection_properties::is_mutable_royalty(obj)
+    public fun is_mutable_properties(collection: Object<Collection>): bool {
+        collection_properties::is_mutable_properties(collection)
+    }
+
+    #[view]
+    public fun is_mutable_max_supply(collection: Object<Collection>): bool {
+        collection_properties::is_mutable_max_supply(collection)
+    }
+
+    #[view]
+    public fun is_mutable_royalty(collection: Object<Collection>): bool {
+        collection_properties::is_mutable_royalty(collection)
     }
 
     // ================================== MIGRATE OUT FUNCTIONS ================================== //

@@ -216,8 +216,10 @@ module migration::migration {
             collection_properties::tokens_burnable_by_collection_owner(properties_v1);
         let (tokens_transferable_by_collection_owner_value, tokens_transferable_by_collection_owner_initialized) =
             collection_properties::tokens_transferable_by_collection_owner(properties_v1);
+        let (mutable_name_value, mutable_name_initialized) = collection_properties::mutable_name(properties_v1);
+        let (mutable_max_supply_value, mutable_max_supply_initialized) = collection_properties::mutable_max_supply(properties_v1);
 
-        // Create CollectionProperties V2 values
+        // Create module CollectionProperties V2 values
         let mutable_description = collection_properties_v2::create_property(
             mutable_description_value,
             mutable_description_initialized
@@ -251,6 +253,8 @@ module migration::migration {
             tokens_transferable_by_collection_owner_value,
             tokens_transferable_by_collection_owner_initialized,
         );
+        let mutable_name = collection_properties_v2::create_property(mutable_name_value, mutable_name_initialized);
+        let mutable_max_supply = collection_properties_v2::create_property(mutable_max_supply_value, mutable_max_supply_initialized);
 
         // Migrate in the collection properties to v2 contract
         collection_properties_v2::migrate_in_collection_properties(
@@ -267,6 +271,8 @@ module migration::migration {
             mutable_royalty,
             tokens_burnable_by_collection_owner,
             tokens_transferable_by_collection_owner,
+            mutable_name,
+            mutable_max_supply,
         );
 
         event::emit(Migrate {

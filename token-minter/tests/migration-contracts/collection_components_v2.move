@@ -54,7 +54,7 @@ module minter_v2::collection_components_v2 {
     }
 
     fun create_default_properties(value: bool): CollectionProperties {
-        collection_properties_v2::create_uninitialized_properties(value, value, value, value, value, value, value, value, value)
+        collection_properties_v2::create_uninitialized_properties(value, value, value, value, value, value, value, value, value, value, value)
     }
 
     public fun set_collection_description(

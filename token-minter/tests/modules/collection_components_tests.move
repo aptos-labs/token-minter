@@ -25,6 +25,29 @@ module minter::collection_components_tests {
     }
 
     #[test(creator = @0x123)]
+    fun test_set_collection_name(creator: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        let new_name = utf8(b"Updated Name");
+        assert!(collection_components::is_mutable_name(collection), 0);
+
+        collection_components::set_collection_name(creator, collection, new_name);
+        assert!(collection::name(collection) == new_name, 0);
+    }
+
+    #[test(creator = @0x123)]
+    #[expected_failure(abort_code = 327683, location = minter::collection_components)]
+    fun test_set_non_mutable_collection_name_fails(creator: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+
+        // Set the name property to non-mutable
+        collection_properties::set_mutable_name(creator, collection, false);
+
+        // Attempt to update the collection name, should fail
+        let new_name = utf8(b"Non-Mutable Name");
+        collection_components::set_collection_name(creator, collection, new_name);
+    }
+
+    #[test(creator = @0x123)]
     fun test_set_collection_description(creator: &signer) {
         let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
         let new_description = utf8(b"Updated Description");
@@ -32,6 +55,27 @@ module minter::collection_components_tests {
 
         collection_components::set_collection_description(creator, collection, new_description);
         assert!(collection::description(collection) == new_description, 0);
+    }
+
+    #[test(creator = @0x123)]
+    fun test_set_collection_max_supply(creator: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+        let new_max_supply = 100;
+        assert!(collection_components::is_mutable_max_supply(collection), 0);
+
+        collection_components::set_collection_max_supply(creator, collection, new_max_supply);
+    }
+
+    #[test(creator = @0x123)]
+    #[expected_failure(abort_code = 327683, location = minter::collection_components)]
+    fun test_set_non_mutable_collection_max_supply_fails(creator: &signer) {
+        let (_, _, collection) = create_test_collection_with_refs_and_properties(creator);
+
+        // Set the max supply property to non-mutable
+        collection_properties::set_mutable_max_supply(creator, collection, false);
+
+        // Attempt to update the collection max supply, should fail
+        collection_components::set_collection_max_supply(creator, collection, 100);
     }
 
     #[test(creator = @0x123)]
