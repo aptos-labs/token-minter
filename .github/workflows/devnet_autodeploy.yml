@@ -1,0 +1,24 @@
+name: Devnet Autodeploy
+
+on:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '*/5 * * * *' # Every 5 minutes
+
+jobs:
+  devnet-autodeploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Check and Publish
+        uses: BriungRi/aptos-devnet-deploy@master
+        with:
+          package_dir: move/
+          named_addresses: minter=0xfa0a807f204b16d220c080f69bd7720dfef219b9d0736eccab1c40ae0b4accb3
+          private_key: ${{ secrets.PRIVATE_KEY }}
+          upgrade_allowed: false
