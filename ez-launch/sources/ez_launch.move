@@ -1,3 +1,5 @@
+/// This contract is deployed to mainnet at 0xde47c6b9d846c03b928d7707df253ffad4ce911af56fbe26af218fd544adcbec
+/// https://explorer.aptoslabs.com/object/0xde47c6b9d846c03b928d7707df253ffad4ce911af56fbe26af218fd544adcbec/modules/code/ez_launch?network=mainnet
 /// This module provides a no-code solution for creating and managing collections of tokens.
 /// It allows for the creation of pre-minted collections, where tokens are pre-minted to the collection address.
 /// This no-code solution will work hand in hand with SDK support to provide a seamless experience for creators to create colletions.
