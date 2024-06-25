@@ -18,7 +18,7 @@ jobs:
       - name: Check and Publish
         uses: BriungRi/aptos-devnet-deploy@master
         with:
-          package_dir: move/
+          package_dir: token-minter/
           named_addresses: minter=0xfa0a807f204b16d220c080f69bd7720dfef219b9d0736eccab1c40ae0b4accb3
           private_key: ${{ secrets.PRIVATE_KEY }}
           upgrade_allowed: false
