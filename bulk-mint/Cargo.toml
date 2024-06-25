@@ -1,0 +1,34 @@
+[package]
+name = "token-minter-bulk-mint"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75.0"
+resolver = "2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+aptos-experimental-bulk-txn-submit = { git = "https://github.com/aptos-labs/aptos-core", rev = "50b6ea5dc8" } 
+# branch = "igor/bulk_txn_submit_script" 
+
+aptos-config = { git = "https://github.com/aptos-labs/aptos-core", rev = "50b6ea5dc8" }
+aptos-crypto = { git = "https://github.com/aptos-labs/aptos-core", rev = "50b6ea5dc8" }
+aptos-logger = { git = "https://github.com/aptos-labs/aptos-core", rev = "50b6ea5dc8" }
+aptos-sdk = { git = "https://github.com/aptos-labs/aptos-core", rev = "50b6ea5dc8" }
+aptos-transaction-emitter-lib = { git = "https://github.com/aptos-labs/aptos-core", rev = "50b6ea5dc8" }
+aptos-transaction-generator-lib = { git = "https://github.com/aptos-labs/aptos-core", rev = "50b6ea5dc8" }
+
+
+clap = { version = "4.3.9", features = ["derive", "env", "unstable-styles"] }
+tokio = { version = "1.35.1", features = ["full"] }
+anyhow = "1.0.71"
+bcs = { git = "https://github.com/aptos-labs/bcs.git", rev = "d31fab9d81748e2594be5cd5cdf845786a30562d" }
+rand = "0.7.3"
+serde = { version = "1.0.193", features = ["derive", "rc"] }
+
+
+[patch.crates-io]
+serde-reflection = { git = "https://github.com/aptos-labs/serde-reflection", rev = "73b6bbf748334b71ff6d7d09d06a29e3062ca075" }
+merlin = { git = "https://github.com/aptos-labs/merlin" }
+x25519-dalek = { git = "https://github.com/aptos-labs/x25519-dalek", branch = "zeroize_v1" }
+

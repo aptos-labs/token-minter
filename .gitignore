@@ -15,3 +15,7 @@ node_modules/
 examples/
 
 .env
+
+# bulk-mint
+bulk-mint/data
+bulk-mint/target
